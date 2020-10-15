@@ -4,6 +4,9 @@ import torch.nn.functional as F
 
 # The moe architecture that outputs an expected output of the experts
 # based on the gate probabilities
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 class moe_expectation_model(nn.Module):
     
     def __init__(self, num_experts, experts, gate):
@@ -194,8 +197,8 @@ class moe_stochastic_model(nn.Module):
     def __init__(self, num_experts, experts, gate):
         super(moe_stochastic_model,self).__init__()
         self.num_experts = num_experts
-        self.experts = experts
-        self.gate = gate
+        self.experts = experts.to(device)
+        self.gate = gate.to(device)
         
         
     def forward(self,input):
@@ -227,7 +230,7 @@ class moe_stochastic_model(nn.Module):
         for epoch in range(epochs):  # loop over the dataset multiple times
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
+                inputs, labels = data[0].to(device), data[1].to(device)
                 #print(inputs)
 
 
