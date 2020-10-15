@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 import matplotlib.cm as cm  # colormaps
 
-get_ipython().run_line_magic('matplotlib', 'inline')
+#get_ipython().run_line_magic('matplotlib', 'inline')
 
 
 # In[2]:
