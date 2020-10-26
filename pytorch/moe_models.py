@@ -187,7 +187,7 @@ def moe_stochastic_loss(expert_outputs, gate_output, target):
     expert_loss.transpose_(0,1)
     expected_loss = torch.sum(gate_output * expert_loss, 1)
     loss = torch.mean(expected_loss)
-    return loss   
+    return loss.to(device)   
 
 # The moe architecture that outputs a stochastic selection of an expert
 # based on the gate probabilities. 
