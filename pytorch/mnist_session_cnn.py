@@ -47,6 +47,8 @@ from moe_models import moe_stochastic_model, moe_stochastic_loss
 
 import torchvision.transforms as transforms
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 # transforms: Convert PIL image to tensors and normalize
 transform = transforms.Compose(
     [transforms.ToTensor(),
@@ -267,7 +269,7 @@ for num_experts in range(2, total_experts+1):
     print('Number of experts ', num_experts)
     expert_models = experts(num_experts)
     gate_model = GateModel(num_experts)
-    moe_model = moe_stochastic_model(num_experts, expert_models, gate_model)
+    moe_model = moe_stochastic_model(num_experts, expert_models, gate_model).to(device)
     optimizer = optim.RMSprop(moe_model.parameters(),
                               lr=0.001, momentum=0.9)
     hist = moe_model.train(trainloader, testloader, optimizer, moe_stochastic_loss, accuracy, epochs=10)
