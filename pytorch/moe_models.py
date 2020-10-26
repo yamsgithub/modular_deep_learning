@@ -177,7 +177,6 @@ class moe_pre_softmax_expectation_model(nn.Module):
             test_running_accuracy = 0.0
         return history
 
-
 def moe_stochastic_loss(expert_outputs, gate_output, target):
     expert_loss = []
     criterion = nn.CrossEntropyLoss(reduction='none')
@@ -188,7 +187,7 @@ def moe_stochastic_loss(expert_outputs, gate_output, target):
     expert_loss.transpose_(0,1)
     expected_loss = torch.sum(gate_output * expert_loss, 1)
     loss = torch.mean(expected_loss)
-    return loss    
+    return loss   
 
 # The moe architecture that outputs a stochastic selection of an expert
 # based on the gate probabilities. 
@@ -230,7 +229,8 @@ class moe_stochastic_model(nn.Module):
         for epoch in range(epochs):  # loop over the dataset multiple times
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data[0].to(device), data[1].to(device)
+                inputs, labels = data
+                inputs, labesl = inputs.to(device), labels.to(device)
                 #print(inputs)
 
 
@@ -261,6 +261,7 @@ class moe_stochastic_model(nn.Module):
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
                 test_input, test_labels = test_data
+                test_input, test_labels = test_inputs.to(device), test_labelss.to(device)
                 test_outputs = self(test_input)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc/(j+1))
