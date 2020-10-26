@@ -86,11 +86,11 @@ testset_fmnist = torchvision.datasets.FashionMNIST('./data',
     transform=transform,
     target_transform=fmnist_target_transform)
 
-trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,1000))
-testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,200))
+#trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,1000))
+#testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,200))
 
-trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,1000))
-testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,200))
+#trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,1000))
+#testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,200))
 
 
 trainset = torch.utils.data.ConcatDataset([trainset_mnist, trainset_fmnist])
