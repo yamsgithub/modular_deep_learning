@@ -122,7 +122,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
         # expected sum of expert outputs
         output = F.softmax(torch.sum(p*x, 1), dim=1)
         
-        return output
+        return output.to(device)
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -217,7 +217,7 @@ class moe_stochastic_model(nn.Module):
         else:
             output = self.experts[0](input)
 
-        return output
+        return output.to(device)
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -246,7 +246,7 @@ class moe_stochastic_model(nn.Module):
                 x = torch.stack(x)
                 p = gate_model(inputs)
 
-                loss = loss_criterion(x, p , labels)
+                loss = loss_criterion(x.to(device), p.to(device) , labels)
                 loss.backward()
 
                 optimizer.step()
