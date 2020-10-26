@@ -108,6 +108,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
 image, label = trainset.__getitem__(0)
 print(image.shape, len(trainset))
 
+del trainset, testset, trainset_fmnist, testset_fmnist, trainset_mnist, testset_mnist 
 
 # In[7]:
 
