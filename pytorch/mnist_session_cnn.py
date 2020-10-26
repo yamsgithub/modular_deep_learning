@@ -99,7 +99,7 @@ bs = 32
 # dataloaders
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs,
                                         shuffle=True)
-testloader = torch.utils.data.DataLoader(testset, batch_size=20000,
+testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
                                         shuffle=False)
 
 # imade size and number of images
