@@ -260,9 +260,9 @@ class moe_stochastic_model(nn.Module):
 
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
-                test_input, test_labels = test_inputs.to(device), test_labelss.to(device)
-                test_outputs = self(test_input)
+                test_inputs, test_labels = test_data
+                test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)
+                test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc/(j+1))
 
