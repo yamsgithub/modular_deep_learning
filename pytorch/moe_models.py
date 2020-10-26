@@ -230,7 +230,7 @@ class moe_stochastic_model(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labesl = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device), labels.to(device)
                 #print(inputs)
 
 
