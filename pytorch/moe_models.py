@@ -257,14 +257,14 @@ class moe_stochastic_model(nn.Module):
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
 
-
-            acc = 0.0
-            for j, test_data in enumerate(testloader, 0):
-                test_inputs, test_labels = test_data
-                test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)
-                test_outputs = self(test_inputs)
-                acc += accuracy(test_outputs, test_labels)
-            test_running_accuracy = (acc/(j+1))
+            with torch.no_grad():
+                acc = 0.0
+                for j, test_data in enumerate(testloader, 0):
+               	    test_inputs, test_labels = test_data
+               	    test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)
+                    test_outputs = self(test_inputs)
+                    acc += accuracy(test_outputs, test_labels)
+                test_running_accuracy = (acc/(j+1))
 
             running_loss = running_loss / (i+1)
             train_running_accuracy = train_running_accuracy / (i+1)
