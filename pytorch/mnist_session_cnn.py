@@ -58,11 +58,11 @@ testset_fmnist = torchvision.datasets.FashionMNIST('./data',
     transform=transform,
     target_transform=fmnist_target_transform)
 
-trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,5000))
-testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,1000))
+# trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,5000))
+# testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,1000))
 
-trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,5000))
-testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,1000))
+# trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,5000))
+# testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,1000))
 
 trainset = torch.utils.data.ConcatDataset([trainset_mnist, trainset_fmnist])
 testset = torch.utils.data.ConcatDataset([testset_mnist, testset_fmnist])
@@ -92,6 +92,7 @@ def imshow(img, one_channel=False):
         plt.imshow(npimg, cmap="Greys")
     else:
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
 
 # get some random training images
 dataiter = iter(trainloader)
@@ -170,7 +171,32 @@ for num_experts in range(2, total_experts+1):
     moe_model = moe_stochastic_model(num_experts, expert_models, gate_model).to(device)
     optimizer = optim.RMSprop(moe_model.parameters(),
                               lr=0.001, momentum=0.9)
-    hist = moe_model.train(trainloader, testloader, optimizer, moe_stochastic_loss, accuracy, epochs=10)
+    hist = moe_model.train(trainloader, testloader, optimizer, moe_stochastic_loss, accuracy, epochs=2)
     history.append(hist)
     models[num_experts] = moe_model
+
+
+labels = []
+for num_experts, hist in enumerate(history,0):
+    plt.plot(range(len(hist['loss'])), hist['loss'])
+    labels.append('loss - ' +str(num_experts+1)+' expert')
+plt.legend(labels)
+plt.savefig('figures/moe_stochastic/loss_moe_stochastic.png')
+plt.show()
+
+labels = []
+for num_experts, hist in enumerate(history,0):
+    plt.plot(range(len(hist['accuracy'])), hist['accuracy'])
+    labels.append('accuracy - ' +str(num_experts+1)+' expert')
+plt.legend(labels)
+plt.savefig('figures/moe_stochastic/train_accuracy_moe_stochastic.png')
+plt.show()
+
+labels = []
+for num_experts, hist in enumerate(history,0):
+    plt.plot(range(len(hist['val_accuracy'])), hist['val_accuracy'])
+    labels.append('accuracy - ' +str(num_experts+1)+' expert')
+plt.legend(labels)
+plt.savefig('figures/moe_stochastic/val_accuracy_moe_stochastic.png')
+plt.show()
 
