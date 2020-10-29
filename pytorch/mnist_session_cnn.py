@@ -1,34 +1,17 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
 
 import time
 import numpy as np
 import matplotlib.pyplot as plt
-
 import matplotlib.cm as cm  # colormaps
-
-#get_ipython().run_line_magic('matplotlib', 'inline')
-
-
-# In[2]:
-
 
 import torch
 import torchvision
-
-
-# In[3]:
-
-
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
-
-# In[4]:
 
 
 from moe_models import moe_stochastic_model, moe_stochastic_loss
@@ -36,13 +19,9 @@ from moe_models import moe_stochastic_model, moe_stochastic_loss
 
 # # Pytorch datasets
 # 
-# Several well known datasets are provided with the Keras implementation, and can be imported and easily used.
-# 
 # The MNIST dataset is a famous and has been used as a testbed of machine learning algorithms for more than 25 years. 
 # 
 # Look at the torchvision documentation [here](https://pytorch.org/docs/stable/torchvision/index.html) to find out about other datasets included with Keras.  There is an interesting dataset called Fashion-MNIST which is a plug-in replacement for the MNIST dataset, but which may have very different properties (it is grey-scale images). 
-
-# In[5]:
 
 
 import torchvision.transforms as transforms
@@ -54,15 +33,8 @@ transform = transforms.Compose(
     [transforms.ToTensor(),
     transforms.Normalize((0.5,), (0.5,))])
 
-
-# In[6]:
-
-
 def fmnist_target_transform(target):
     return target+10
-
-
-# In[7]:
 
 
 # datasets
@@ -86,18 +58,18 @@ testset_fmnist = torchvision.datasets.FashionMNIST('./data',
     transform=transform,
     target_transform=fmnist_target_transform)
 
-trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,1000))
-testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,200))
+trainset_fmnist = torch.utils.data.Subset(trainset_fmnist, range(0,5000))
+testset_fmnist = torch.utils.data.Subset(testset_fmnist, range(0,1000))
 
-trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,1000))
-testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,200))
+trainset_mnist = torch.utils.data.Subset(trainset_mnist, range(0,5000))
+testset_mnist = torch.utils.data.Subset(testset_mnist, range(0,1000))
 
 
 trainset = torch.utils.data.ConcatDataset([trainset_mnist, trainset_fmnist])
 testset = torch.utils.data.ConcatDataset([testset_mnist, testset_fmnist])
 
 
-bs = 32
+bs = 32 
 # dataloaders
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=bs,
                                         shuffle=True)
@@ -110,58 +82,6 @@ print(image.shape, len(trainset))
 
 del trainset, testset, trainset_fmnist, testset_fmnist, trainset_mnist, testset_mnist 
 
-# In[7]:
-
-
-
-
-# In[9]:
-
-
-# trainset_mnist = torchvision.datasets.MNIST('./data',
-#     download=True,
-#     train=True,
-#     transform=transform)
-# testset_mnist = torchvision.datasets.MNIST('./data',
-#     download=True,
-#     train=False,
-#     transform=transform)
-
-# bs = 64
-# # dataloaders
-# trainloader = torch.utils.data.DataLoader(trainset_mnist, batch_size=bs,
-#                                         shuffle=True, num_workers=2)
-# testloader = torch.utils.data.DataLoader(testset_mnist, batch_size=10000,
-#                                         shuffle=False, num_workers=2)
-
-# # image size and number of images
-# image, label = trainset_mnist.__getitem__(0)
-# print(image.shape, len(trainset_mnist))
-
-
-# trainset_fmnist = torchvision.datasets.FashionMNIST('./data',
-#     download=True,
-#     train=True,
-#     transform=transform)
-# testset_fmnist = torchvision.datasets.FashionMNIST('./data',
-#     download=True,
-#     train=False,
-#     transform=transform)
-
-# bs = 64
-# # dataloaders
-# trainloader = torch.utils.data.DataLoader(trainset_fmnist, batch_size=bs,
-#                                         shuffle=True, num_workers=2)
-# testloader = torch.utils.data.DataLoader(testset_fmnist, batch_size=10000,
-#                                         shuffle=False, num_workers=2)
-
-# # image size and number of images
-# image, label = trainset_fmnist.__getitem__(0)
-# print(image.shape, len(trainset_fmnist))
-
-# In[8]:
-
-
 # helper function to show an image
 # (used in the `plot_classes_preds` function below)
 def imshow(img, one_channel=False):
@@ -173,10 +93,6 @@ def imshow(img, one_channel=False):
         plt.imshow(npimg, cmap="Greys")
     else:
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
-
-
-# In[9]:
-
 
 # get some random training images
 dataiter = iter(trainloader)
@@ -197,9 +113,6 @@ imshow(img_grid, one_channel=True)
 # 
 # It is best not to use the entire MNIST dataset as a training set because you will be training for the whole of the practical class. You will learn much more by training repeatedly on smaller subsets, and examining the effect of using different models and parameters. 
 
-# In[10]:
-
-
 class ExpertModel(nn.Module):
     def __init__(self):
         super(ExpertModel, self).__init__()
@@ -216,10 +129,6 @@ class ExpertModel(nn.Module):
         x = F.softmax(self.fc2(x), dim=1)
 
         return x
-
-
-# In[11]:
-
 
 class GateModel(nn.Module):
     def __init__(self, num_experts):
@@ -239,9 +148,6 @@ class GateModel(nn.Module):
         return x
 
 
-# In[12]:
-
-
 # create a set of experts
 def experts(num_experts):
     models = []
@@ -249,18 +155,10 @@ def experts(num_experts):
         models.append(ExpertModel())
     return nn.ModuleList(models)
 
-
-# In[13]:
-
-
 # compute
 def accuracy(out, yb):
     preds = torch.argmax(out, dim=1)
     return (preds == yb).float().mean()
-
-
-# In[ ]:
-
 
 # experiment with models with different number of experts
 models = {}
