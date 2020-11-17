@@ -92,7 +92,7 @@ def imshow(img, one_channel=False):
         plt.imshow(npimg, cmap="Greys")
     else:
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
+    plt.clf()
 
 # get some random training images
 dataiter = iter(trainloader)
@@ -162,16 +162,16 @@ def accuracy(out, yb):
 
 # experiment with models with different number of experts
 models = {}
-total_experts = 2
+total_experts = 10 
 history = []
-for num_experts in range(2, total_experts+1):
+for num_experts in range(1, total_experts+1):
     print('Number of experts ', num_experts)
     expert_models = experts(num_experts)
     gate_model = GateModel(num_experts)
     moe_model = moe_stochastic_model(num_experts, expert_models, gate_model).to(device)
     optimizer = optim.RMSprop(moe_model.parameters(),
                               lr=0.001, momentum=0.9)
-    hist = moe_model.train(trainloader, testloader, optimizer, moe_stochastic_loss, accuracy, epochs=2)
+    hist = moe_model.train(trainloader, testloader, optimizer, moe_stochastic_loss, accuracy, epochs=10)
     history.append(hist)
     models[num_experts] = moe_model
 
@@ -183,6 +183,7 @@ for num_experts, hist in enumerate(history,0):
 plt.legend(labels)
 plt.savefig('figures/moe_stochastic/loss_moe_stochastic.png')
 plt.show()
+plt.clf()
 
 labels = []
 for num_experts, hist in enumerate(history,0):
@@ -191,6 +192,7 @@ for num_experts, hist in enumerate(history,0):
 plt.legend(labels)
 plt.savefig('figures/moe_stochastic/train_accuracy_moe_stochastic.png')
 plt.show()
+plt.clf()
 
 labels = []
 for num_experts, hist in enumerate(history,0):
@@ -198,5 +200,6 @@ for num_experts, hist in enumerate(history,0):
     labels.append('accuracy - ' +str(num_experts+1)+' expert')
 plt.legend(labels)
 plt.savefig('figures/moe_stochastic/val_accuracy_moe_stochastic.png')
+plt.clf()
 plt.show()
 
