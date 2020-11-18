@@ -229,8 +229,9 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
                 ax[((i+1)*3)+index].set_ylabel('Dim 2')
                 ax[((i+1)*3)+index].set_xlabel('Dim 1')
 
+            palette = sns.husl_palette(total_experts)
             pred_gate = moe_model.gate(generated_data)
-            pred_gate_color, pred_gate_labels = labels(pred_gate, ['b','y','m','k'])
+            pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
                             hue=pred_gate_labels,palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
@@ -241,7 +242,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
         
         
             pred_gate = moe_model.gate(trainset[:][0])
-            pred_gate_color, pred_gate_labels = labels(pred_gate, ['b','y','m','k'])
+            pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
             sns.scatterplot(x=trainset[:][0][:,0],y=trainset[:][0][:,1],
                             hue=pred_gate_labels,palette=pred_gate_color, ax=ax[((e+2)*3)+index])       
@@ -272,13 +273,21 @@ def plot_accuracy(models, total_experts, save_as):
 def main():
     dataset =  'checker_board-1'
     total_experts = 10
-    epochs = 10
+    epochs = 20
     X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
     
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
     plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
+    dataset =  'checker_board-2'
+    total_experts = 20
+    epochs = 40
+    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+    
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
+    
+    plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
 if __name__ == "__main__":
     # execute only if run as a script
