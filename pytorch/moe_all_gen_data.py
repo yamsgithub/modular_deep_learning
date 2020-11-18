@@ -35,7 +35,8 @@ def plot_data(X, y, num_classes, save_as):
     plt.ylabel('Dim 2')
     plt.xlabel('Dim 1')
     plt.savefig(save_as)
-    #plt.show()
+    plt.show()
+    plt.clf()
 
 
 # ### Generate dataset for training
@@ -251,16 +252,18 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
             index += 1
         plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
         plt.show()
+        plt.clf()
 
 def plot_accuracy(models, total_experts, save_as):
     labels = []
     for m_key, m_val in models.items():
         labels.append(m_key)
-        accuracies = {} 
+        accuracies = []
         for i in range(1, total_experts+1):                
             history = m_val['experts'][i]['history']
-            accuracies[i] = history['accuracy'][-1]
-            plt.plot(list(accuracies.keys()), list(accuracies.values()))
+            accuracies.append(history['accuracy'][-1])
+        print(range(1,len(accuracies)+1), accuracies)
+        plt.plot(range(1,len(accuracies)+1), accuracies)
     plt.legend(labels)
     plt.ylim(0, 1)
     plt.xticks(range(1, total_experts+1), [str(i) for i in range(1, total_experts+1)])
@@ -268,26 +271,27 @@ def plot_accuracy(models, total_experts, save_as):
     plt.ylabel('Accuracy')
     plt.savefig(save_as)
     plt.show()
+    plt.clf()
     
 
 def main():
     dataset =  'checker_board-1'
-    total_experts = 10
-    epochs = 20
+    total_experts = 2
+    epochs = 1
     X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
     
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
     plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    dataset =  'checker_board-2'
-    total_experts = 20
-    epochs = 40
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+    # dataset =  'checker_board-2'
+    # total_experts = 20
+    # epochs = 40
+    # X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
     
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
+    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
-    plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
 if __name__ == "__main__":
     # execute only if run as a script
