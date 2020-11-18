@@ -256,6 +256,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
 
 def plot_accuracy(models, total_experts, save_as):
     labels = []
+    plt.figure(figsize=(20,10))
     for m_key, m_val in models.items():
         labels.append(m_key)
         accuracies = []
@@ -276,22 +277,22 @@ def plot_accuracy(models, total_experts, save_as):
 
 def main():
     dataset =  'checker_board-1'
-    total_experts = 2
-    epochs = 1
+    total_experts = 10 
+    epochs = 20 
     X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
     
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
     plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    # dataset =  'checker_board-2'
-    # total_experts = 20
-    # epochs = 40
-    # X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+    dataset =  'checker_board-2'
+    total_experts = 20
+    epochs = 40
+    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+   
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
-    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
-    
-    # plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
 if __name__ == "__main__":
     # execute only if run as a script
