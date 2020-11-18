@@ -79,8 +79,25 @@ class expert_layers(nn.Module):
     def forward(self, input):
         return self.model(input)
 
+class expert_layers_1(nn.Module):
+    def __init__(self, output):
+        super(expert_layers_1, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(2, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16, 4),
+            nn.ReLU(),
+            nn.Linear(4,output),
+            nn.Softmax(dim=1)
+        )        
+        
+    def forward(self, input):
+        return self.model(input)
+
 # create a set of experts
-def experts(num_experts, num_classes):
+def experts(expert_layers, num_experts, num_classes):
     models = []
     for i in range(num_experts):
         models.append(expert_layers(num_classes))
@@ -97,6 +114,21 @@ class gate_layers(nn.Module):
                     nn.Linear(4,num_experts),
                     nn.Softmax(dim=1)
                 )
+        
+    def forward(self, input):
+        return self.model(input)
+
+class gate_layers_1(nn.Module):
+    def __init__(self, num_experts):
+        super(gate_layers_1, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(2, 32),
+            nn.ReLU(),
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Linear(16,num_experts),
+            nn.Softmax(dim=1)
+        )
         
     def forward(self, input):
         return self.model(input)
@@ -143,6 +175,48 @@ def run_experiment(dataset, total_experts = 3, epochs = 10):
             print('Number of experts ', num_experts)
             expert_models = experts(num_experts, num_classes)
             gate_model = gate_layers(num_experts)
+            moe_model = val['model'](num_experts, expert_models, gate_model)
+            optimizer = optim.RMSprop(moe_model.parameters(),
+                                      lr=0.001, momentum=0.9)
+            hist = moe_model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            val['experts'][num_experts] = {'model':moe_model, 'history':hist}
+
+    return X, y, num_classes, trainset, trainloader, testset, testloader, models
+
+def run_experiment_1(dataset, total_experts = 3, epochs = 10):
+
+    X, y, num_classes = generate_data(dataset)
+    
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+    print(len(y_train))
+    print(sum(y_train))
+    print(len(y_test))
+    print(sum(y_test))
+
+    # Create trainloader
+    batchsize = 32
+    trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
+                                              torch.tensor(y_train, dtype=torch.long))
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
+                                              shuffle=True, num_workers=2)
+    testset = torch.utils.data.TensorDataset(torch.tensor(x_test, dtype=torch.float32),
+                                             torch.tensor(y_test, dtype=torch.long))
+    testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
+                                             shuffle=True, num_workers=2)
+
+
+
+    # experiment with models with different number of experts
+    models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
+              'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
+              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}}
+    for key, val in models.items():
+        print('Model:', key)
+        for num_experts in range(1, total_experts+1):
+            print('Number of experts ', num_experts)
+            expert_models = experts(expert_layers_1, num_experts, num_classes)
+            gate_model = gate_layers_1(num_experts)
             moe_model = val['model'](num_experts, expert_models, gate_model)
             optimizer = optim.RMSprop(moe_model.parameters(),
                                       lr=0.001, momentum=0.9)
@@ -276,19 +350,19 @@ def plot_accuracy(models, total_experts, save_as):
     
 
 def main():
-    dataset =  'checker_board-1'
-    total_experts = 10 
-    epochs = 20 
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+    # dataset =  'checker_board-1'
+    # total_experts = 10 
+    # epochs = 20 
+    # X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
     
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
+    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
-    plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    dataset =  'checker_board-2'
+    dataset =  'expert_1_gate_1_checker_board-2'
     total_experts = 20
     epochs = 40
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment_1(dataset, total_experts, epochs)
    
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
     
