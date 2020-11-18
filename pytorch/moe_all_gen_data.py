@@ -35,7 +35,7 @@ def plot_data(X, y, num_classes, save_as):
     plt.ylabel('Dim 2')
     plt.xlabel('Dim 1')
     plt.savefig(save_as)
-    plt.show()
+    #plt.show()
     plt.clf()
 
 
@@ -173,7 +173,7 @@ def run_experiment(dataset, total_experts = 3, epochs = 10):
         print('Model:', key)
         for num_experts in range(1, total_experts+1):
             print('Number of experts ', num_experts)
-            expert_models = experts(num_experts, num_classes)
+            expert_models = experts(expert_layers, num_experts, num_classes)
             gate_model = gate_layers(num_experts)
             moe_model = val['model'](num_experts, expert_models, gate_model)
             optimizer = optim.RMSprop(moe_model.parameters(),
@@ -325,7 +325,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
             
             index += 1
         plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
-        plt.show()
+        #plt.show()
         plt.clf()
 
 def plot_accuracy(models, total_experts, save_as):
@@ -337,7 +337,6 @@ def plot_accuracy(models, total_experts, save_as):
         for i in range(1, total_experts+1):                
             history = m_val['experts'][i]['history']
             accuracies.append(history['accuracy'][-1])
-        print(range(1,len(accuracies)+1), accuracies)
         plt.plot(range(1,len(accuracies)+1), accuracies)
     plt.legend(labels)
     plt.ylim(0, 1)
@@ -345,9 +344,11 @@ def plot_accuracy(models, total_experts, save_as):
     plt.xlabel('Number of Experts')
     plt.ylabel('Accuracy')
     plt.savefig(save_as)
-    plt.show()
+    #plt.show()
     plt.clf()
-    
+
+
+
 
 def main():
     # dataset =  'checker_board-1'
@@ -359,14 +360,48 @@ def main():
     
     # plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    dataset =  'expert_1_gate_1_checker_board-2'
-    total_experts = 20
-    epochs = 40
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment_1(dataset, total_experts, epochs)
+    dataset =  'expert_0_gate_0_checker_board-2'
+    total_experts = 3
+    epochs = 1
+    X, y, num_classes, trainset, trainloader, testset, testloader,  models_1 = run_experiment(dataset, total_experts, epochs)
    
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models_1, dataset, total_experts)
     
-    plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    plot_accuracy(models_1, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+
+    dataset =  'expert_1_gate_1_checker_board-2'
+    total_experts = 3
+    epochs = 1
+    X, y, num_classes, trainset, trainloader, testset, testloader,  models_2 = run_experiment_1(dataset, total_experts, epochs)
+   
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models_2, dataset, total_experts)
+    
+    plot_accuracy(models_2, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+
+
+    for model_name in ['moe_stochastic_model', 'moe_expectation_model', 'moe_pre_softmax_expectation_model']:
+        plt.figure(figsize=(20,10))
+        accuracies = []
+        for i in range(1, total_experts+1):                
+            history = models_1[model_name]['experts'][i]['history']
+            accuracies.append(history['accuracy'][-1])
+        plt.plot(range(1,len(accuracies)+1), accuracies)
+
+        accuracies = []
+        for i in range(1, total_experts+1):                
+            history = models_2[model_name]['experts'][i]['history']
+            accuracies.append(history['accuracy'][-1])
+        plt.plot(range(1,len(accuracies)+1), accuracies)
+        plt.title(model_name)
+        plt.legend(['Simple Expert', 'Deep Expert'])
+        plt.xticks(range(1, total_experts+1), [str(i) for i in range(1, total_experts+1)])
+        plt.xlabel('Number of Experts')
+        plt.ylim(0, 1)
+        plt.ylabel('Accuracy')
+        plt.savefig('figures/all/accuracy_'+model_name+'_'+dataset+'_'+ str(num_classes)+'_experts_.png')
+        #plt.show()
+        plt.clf()
+
 
 if __name__ == "__main__":
     # execute only if run as a script
