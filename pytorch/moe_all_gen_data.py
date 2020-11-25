@@ -2,7 +2,8 @@
 # coding: utf-8
 
 import matplotlib.pyplot as plt
-import matplotlib.cm as cm  # colormaps 
+import matplotlib.cm as cm  # colormaps
+import seaborn as sns
                                         
 #get_ipython().run_line_magic('matplotlib', 'inline')
 
@@ -10,8 +11,6 @@ from sklearn import datasets
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-
-import seaborn as sns
 
 import numpy as np
 from statistics import mean
@@ -25,22 +24,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
+from visualise_results import *
+
 from moe_models import moe_stochastic_model, moe_stochastic_loss, moe_expectation_model, moe_pre_softmax_expectation_model
 
-def plot_data(X, y, num_classes, save_as):
-    f, ax = plt.subplots(nrows=1, ncols=1,figsize=(15,8))
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple'][0:num_classes]
-    sns.scatterplot(x=X[:,0],y=X[:,1],hue=y,palette=colors, ax=ax)
-    ax.set_title("2D 3 classes Generated Data")
-    plt.ylabel('Dim 2')
-    plt.xlabel('Dim 1')
-    plt.savefig(save_as)
-    #plt.show()
-    plt.clf()
-
-
 # ### Generate dataset for training
-
 
 def generate_data(dataset):
     num_classes = 2
@@ -61,7 +49,26 @@ def generate_data(dataset):
 
     plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'_.png')
 
-    return X, y, num_classes
+    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+    print(len(y_train))
+    print(sum(y_train))
+    print(len(y_test))
+    print(sum(y_test))
+
+    # Create trainloader
+    batchsize = 32
+    trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
+                                              torch.tensor(y_train, dtype=torch.long))
+    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
+                                              shuffle=True, num_workers=2)
+    testset = torch.utils.data.TensorDataset(torch.tensor(x_test, dtype=torch.float32),
+                                             torch.tensor(y_test, dtype=torch.long))
+    testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
+                                             shuffle=True, num_workers=2)
+
+
+    return X, y, trainset, trainloader, testset, testloader, num_classes
 
 # ### Networks and callbacks
 
@@ -141,29 +148,7 @@ def accuracy(out, yb):
     preds = torch.argmax(out, dim=1)
     return (preds == yb).float().mean()
 
-def run_experiment(dataset, total_experts = 3, epochs = 10):
-
-    X, y, num_classes = generate_data(dataset)
-    
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-    print(len(y_train))
-    print(sum(y_train))
-    print(len(y_test))
-    print(sum(y_test))
-
-    # Create trainloader
-    batchsize = 32
-    trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
-                                              torch.tensor(y_train, dtype=torch.long))
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
-                                              shuffle=True, num_workers=2)
-    testset = torch.utils.data.TensorDataset(torch.tensor(x_test, dtype=torch.float32),
-                                             torch.tensor(y_test, dtype=torch.long))
-    testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
-                                             shuffle=True, num_workers=2)
-
-
+def run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10):
 
     # experiment with models with different number of experts
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
@@ -181,32 +166,10 @@ def run_experiment(dataset, total_experts = 3, epochs = 10):
             hist = moe_model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':moe_model, 'history':hist}
 
-    return X, y, num_classes, trainset, trainloader, testset, testloader, models
+    return  models
 
-def run_experiment_1(dataset, total_experts = 3, epochs = 10):
-
-    X, y, num_classes = generate_data(dataset)
+def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10):
     
-    x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
-    print(len(y_train))
-    print(sum(y_train))
-    print(len(y_test))
-    print(sum(y_test))
-
-    # Create trainloader
-    batchsize = 32
-    trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
-                                              torch.tensor(y_train, dtype=torch.long))
-    trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
-                                              shuffle=True, num_workers=2)
-    testset = torch.utils.data.TensorDataset(torch.tensor(x_test, dtype=torch.float32),
-                                             torch.tensor(y_test, dtype=torch.long))
-    testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
-                                             shuffle=True, num_workers=2)
-
-
-
     # experiment with models with different number of experts
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
@@ -223,184 +186,112 @@ def run_experiment_1(dataset, total_experts = 3, epochs = 10):
             hist = moe_model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':moe_model, 'history':hist}
 
-    return X, y, num_classes, trainset, trainloader, testset, testloader, models
+    return  models
 
-
-# ### Visualise decision boundaries of mixture of expert model, expert model and gate model
-
-def create_meshgrid(X):
-    #create meshgrid
-    resolution = 100 # 100x100 background pixels
-    a2d_min, a2d_max = np.min(X[:,0]), np.max(X[:,0])
-    b2d_min, b2d_max = np.min(X[:,1]), np.max(X[:,1])
-    a, b = np.meshgrid(np.linspace(a2d_min, a2d_max, resolution), 
-                       np.linspace(b2d_min, b2d_max, resolution))
-    generated_data = torch.tensor(np.c_[a.ravel(), b.ravel()], dtype=torch.float32)
-
-    return generated_data
-
-def labels(p, palette=['r','c','y','g']):
-    pred_labels = torch.argmax(p, dim=1)+1
-    uniq_y = np.unique(pred_labels)
-    pred_color = [palette[i-1] for i in uniq_y]
-    return pred_color, pred_labels
-
-
-def predict(dataloader, model):
-        
-        pred_labels = []
-        true_labels = []
-        for i, data in enumerate(dataloader):
-            inputs, labels = data
-            true_labels.append(labels)
-            pred_labels.append(torch.argmax(model(inputs), dim=1))
-            
-        return torch.stack(true_labels), torch.stack(pred_labels)
-
-def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
-
-    generated_data = create_meshgrid(X)
-    
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
-    
-    for e in range(1, total_experts+1):
-        nrows = (e*1)+3
-        ncols = 3
-        thefigsize = (ncols*5,nrows*5)
-        
-        print('Number of Experts:', e)
-        
-        fig,ax = plt.subplots(nrows, ncols, sharex=True, sharey=True, figsize=thefigsize)
-        ax = ax.flatten()
-    
-        keys = models.keys()
-        print(keys)
-
-        index = 0
+def aggregate_results(runs, total_experts):
+    results = runs[0]
+    print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
+    for models in runs[1:]:
+        print('models', models['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
         for m_key, m_val in models.items():
-        
-            moe_model = m_val['experts'][e]['model']
-            
-            pred = moe_model(generated_data)
-            pred_color,pred_labels = labels(pred)
-            sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_labels,palette=pred_color, legend=False, ax=ax[index])
-            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[index])
-            ax[index].set_title('Mixture of Experts')
-            ax[index].set_ylabel('Dim 2')
-            ax[index].set_xlabel('Dim 1')
-            
-        
-            experts = moe_model.experts
-
-            for i in range(0, e):
-                pred = experts[i](generated_data)
-                pred_color,pred_labels = labels(pred)
-                sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                                hue=pred_labels,palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
-                sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
+            for expert in range(1, total_experts+1):
+                results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history']['loss']))
+                results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['accuracy']))
+                results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['val_accuracy']))
+        print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
                 
-                ax[((i+1)*3)+index].set_title('Expert '+str(i+1)+' Model')
-                ax[((i+1)*3)+index].set_ylabel('Dim 2')
-                ax[((i+1)*3)+index].set_xlabel('Dim 1')
-
-            palette = sns.husl_palette(total_experts)
-            pred_gate = moe_model.gate(generated_data)
-            pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
-            
-            sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_gate_labels,palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
-            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])
-            ax[((e+1)*3)+index].set_title('Gate Model')
-            ax[((e+1)*3)+index].set_ylabel('Dim 2')
-            ax[((e+1)*3)+index].set_xlabel('Dim 1')
-        
-        
-            pred_gate = moe_model.gate(trainset[:][0])
-            pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
-            
-            sns.scatterplot(x=trainset[:][0][:,0],y=trainset[:][0][:,1],
-                            hue=pred_gate_labels,palette=pred_gate_color, ax=ax[((e+2)*3)+index])       
-            
-            
-            index += 1
-        plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
-        #plt.show()
-        plt.clf()
-
-def plot_accuracy(models, total_experts, save_as):
-    labels = []
-    plt.figure(figsize=(20,10))
     for m_key, m_val in models.items():
-        labels.append(m_key)
-        accuracies = []
-        for i in range(1, total_experts+1):                
-            history = m_val['experts'][i]['history']
-            accuracies.append(history['accuracy'][-1])
-        plt.plot(range(1,len(accuracies)+1), accuracies)
-    plt.legend(labels)
-    plt.ylim(0, 1)
-    plt.xticks(range(1, total_experts+1), [str(i) for i in range(1, total_experts+1)])
-    plt.xlabel('Number of Experts')
-    plt.ylabel('Accuracy')
-    plt.savefig(save_as)
-    #plt.show()
-    plt.clf()
-
-
-
+        for expert in range(1, total_experts+1):
+            results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss'])/len(runs))
+            results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy'])/len(runs))
+            results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy'])/len(runs))
+    print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
+                
+    return results
 
 def main():
-    # dataset =  'checker_board-1'
-    # total_experts = 10 
-    # epochs = 20 
-    # X, y, num_classes, trainset, trainloader, testset, testloader,  models = run_experiment(dataset, total_experts, epochs)
+
+    fp = open('results.csv', 'w')
+    col_names = ['dataset', 'number of classes', 'number of runs', 'epochs', 'number of parameters-total','number of parameters-expert','number of parameters-gate', 'model', 'number of experts','loss','training accuracy','validation accuracy']
+    fp.write(','.join(col_names)+'\n')
+
+    dataset =  'expert_0_gate_0_checker_board-1'
+
+    X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
+
+    num_runs = 10
+    total_experts = 10
+    epochs = 20
+
+    runs = []
+    for r in range(0, num_runs):
+        models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+        runs.append(models)
     
-    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts)
+    results = runs[0]
+    if num_runs > 1:
+        results = aggregate_results(runs, total_experts)
+
+    for m_key, m_val in results.items():
+        for i in range(1, total_experts+1):
+            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
+            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
+            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
+                               str(m_val['experts'][i]['history']['accuracy'][-1]),
+                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
-    # plot_accuracy(models, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_0_gate_0_checker_board-2'
-    total_experts = 3
-    epochs = 1
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models_1 = run_experiment(dataset, total_experts, epochs)
-   
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models_1, dataset, total_experts)
+    total_experts = 20
+    epochs = 40
+
+    runs = []
+    for r in range(0, num_runs):
+        models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+        runs.append(models)
     
-    plot_accuracy(models_1, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    results = runs[0]
+    if num_runs > 1:
+        results = aggregate_results(runs, total_experts)
+
+    for m_key, m_val in results.items():
+        for i in range(1, total_experts+1):
+            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
+            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
+            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
+                               str(m_val['experts'][i]['history']['accuracy'][-1]),
+                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    
+    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_1_gate_1_checker_board-2'
-    total_experts = 3
-    epochs = 1
-    X, y, num_classes, trainset, trainloader, testset, testloader,  models_2 = run_experiment_1(dataset, total_experts, epochs)
-   
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models_2, dataset, total_experts)
+    total_experts = 20
+    epochs = 40
+
+    runs = []
+    for r in range(0, num_runs):
+        models = run_experiment_1(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+        runs.append(models)
     
-    plot_accuracy(models_2, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    results = runs[0]
+    if num_runs > 1:
+        results = aggregate_results(runs, total_experts)
 
-
-    for model_name in ['moe_stochastic_model', 'moe_expectation_model', 'moe_pre_softmax_expectation_model']:
-        plt.figure(figsize=(20,10))
-        accuracies = []
-        for i in range(1, total_experts+1):                
-            history = models_1[model_name]['experts'][i]['history']
-            accuracies.append(history['accuracy'][-1])
-        plt.plot(range(1,len(accuracies)+1), accuracies)
-
-        accuracies = []
-        for i in range(1, total_experts+1):                
-            history = models_2[model_name]['experts'][i]['history']
-            accuracies.append(history['accuracy'][-1])
-        plt.plot(range(1,len(accuracies)+1), accuracies)
-        plt.title(model_name)
-        plt.legend(['Simple Expert', 'Deep Expert'])
-        plt.xticks(range(1, total_experts+1), [str(i) for i in range(1, total_experts+1)])
-        plt.xlabel('Number of Experts')
-        plt.ylim(0, 1)
-        plt.ylabel('Accuracy')
-        plt.savefig('figures/all/accuracy_'+model_name+'_'+dataset+'_'+ str(num_classes)+'_experts_.png')
-        #plt.show()
-        plt.clf()
+    for m_key, m_val in results.items():
+        for i in range(1, total_experts+1):
+            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
+            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
+            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
+                               str(m_val['experts'][i]['history']['accuracy'][-1]),
+                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    
+    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    
+    fp.close()
 
 
 if __name__ == "__main__":
