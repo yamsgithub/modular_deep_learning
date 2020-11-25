@@ -190,22 +190,18 @@ def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_c
 
 def aggregate_results(runs, total_experts):
     results = runs[0]
-    print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
     for models in runs[1:]:
-        print('models', models['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
         for m_key, m_val in models.items():
             for expert in range(1, total_experts+1):
                 results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history']['loss']))
                 results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['accuracy']))
                 results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['val_accuracy']))
-        print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
                 
     for m_key, m_val in models.items():
         for expert in range(1, total_experts+1):
             results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss'])/len(runs))
             results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy'])/len(runs))
             results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy'])/len(runs))
-    print('results', results['moe_stochastic_model']['experts'][2]['history']['accuracy'],'\n\n')
                 
     return results
 
