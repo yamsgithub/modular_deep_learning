@@ -143,11 +143,13 @@ class gate_layers_1(nn.Module):
 class single_model(nn.Module):
     def __init__(self, parameters, num_experts, num_classes):
         super(single_model, self).__init__()
-        output = parameters/(2*(num_experts+1)*2)
+        output = floaat(parameters)/(2*(num_experts+1)*2)
         if modf(output)[0] < 0.5:
             output = floor(output)
         else:
             output = ceil(output)
+        if output <= 0.0:
+            output = 1
         print('parameters', parameters, 'num_experts', num_experts+1, 'output', output)
         self.model = nn.Sequential(
             nn.Linear(2, output*4),
@@ -221,7 +223,7 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
                 model = val['model'](num_experts, expert_models, gate_model)
             else:
                 moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
-                model = single_model(moe_model_params, total_experts, num_classes)
+                model = single_model(moe_model_params, num_experts, num_classes)
 
             model_params = sum([p.numel() for p in model.parameters()])
             optimizer = optim.RMSprop(model.parameters(),
@@ -251,7 +253,7 @@ def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_c
 
             else:
                 moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
-                model = single_model(moe_model_params, total_experts, num_classes)
+                model = single_model(moe_model_params, num_experts, num_classes)
 
             model_params = sum([p.numel() for p in model.parameters()])
             optimizer = optim.RMSprop(model.parameters(),
