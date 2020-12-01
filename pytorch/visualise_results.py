@@ -69,6 +69,9 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
 
         index = 0
         for m_key, m_val in models.items():
+
+            if m_key == 'single_model':
+                continue
         
             moe_model = m_val['experts'][e]['model']
             
