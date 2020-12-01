@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 
 import numpy as np
 from statistics import mean
-from math import ceil
+from math import ceil, floor, modf
 
 
 import torch
@@ -140,7 +140,62 @@ class gate_layers_1(nn.Module):
     def forward(self, input):
         return self.model(input)
 
+class single_model(nn.Module):
+    def __init__(self, parameters, num_experts, num_classes):
+        super(single_model, self).__init__()
+        output = parameters/(2*(num_experts+1)*2)
+        if modf(output)[0] < 0.5:
+            output = floor(output)
+        else:
+            output = ceil(output)
+        print('parameters', parameters, 'num_experts', num_experts+1, 'output', output)
+        self.model = nn.Sequential(
+            nn.Linear(2, output*4),
+            nn.ReLU(),
+            nn.Linear(output*4, num_classes),
+            nn.Softmax(dim=1)
+        )
+        
+    def forward(self, input):
+        return self.model(input)
 
+    def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):    
+
+        history = {'loss':[], 'accuracy':[], 'val_accuracy':[]}
+        for epoch in range(0, epochs):
+            running_loss = 0.0
+            training_accuracy = 0.0
+            test_accuracy = 0.0
+            for i, data in enumerate(trainloader, 0):
+                # get the inputs; data is a list of [inputs, labels]
+                inputs, labels = data
+                
+                # zero the parameter gradients
+                optimizer.zero_grad()
+                
+                # forward + backward + optimize
+                outputs = self(inputs)
+                loss = loss_criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()
+            
+                running_loss += loss.item()
+                training_accuracy += accuracy(outputs, labels)
+                
+            for j, test_data in enumerate(testloader, 0):
+                test_input, test_labels = test_data
+                test_outputs = self(test_input)
+                test_accuracy += accuracy(test_outputs, test_labels)
+            history['loss'].append(running_loss/(i+1))
+            history['accuracy'].append(training_accuracy/(i+1))
+            history['val_accuracy'].append(test_accuracy/(j+1))
+            print('epoch: %d loss: %.3f training accuracy: %.3f val accuracy: %.3f' %
+                  (epoch + 1, running_loss / (i+1), training_accuracy/(i+1), test_accuracy/(j+1)))
+        return history
+
+
+
+        
 # ### Mixture of experts model
 
 # compute
@@ -153,18 +208,26 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
     # experiment with models with different number of experts
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
-              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}}
+              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
+              'single_model': {'model':single_model, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
+    }
     for key, val in models.items():
         print('Model:', key)
         for num_experts in range(1, total_experts+1):
             print('Number of experts ', num_experts)
-            expert_models = experts(expert_layers, num_experts, num_classes)
-            gate_model = gate_layers(num_experts)
-            moe_model = val['model'](num_experts, expert_models, gate_model)
-            optimizer = optim.RMSprop(moe_model.parameters(),
+            if not key == 'single_model':
+                expert_models = experts(expert_layers, num_experts, num_classes)
+                gate_model = gate_layers(num_experts)
+                model = val['model'](num_experts, expert_models, gate_model)
+            else:
+                moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
+                model = single_model(moe_model_params, total_experts, num_classes)
+
+            model_params = sum([p.numel() for p in model.parameters()])
+            optimizer = optim.RMSprop(model.parameters(),
                                       lr=0.001, momentum=0.9)
-            hist = moe_model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
-            val['experts'][num_experts] = {'model':moe_model, 'history':hist}
+            hist = model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
 
@@ -173,18 +236,28 @@ def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_c
     # experiment with models with different number of experts
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
-              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}}
+              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
+              'single_model': {'model':single_model, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
+    }
     for key, val in models.items():
+                                           
         print('Model:', key)
         for num_experts in range(1, total_experts+1):
             print('Number of experts ', num_experts)
-            expert_models = experts(expert_layers_1, num_experts, num_classes)
-            gate_model = gate_layers_1(num_experts)
-            moe_model = val['model'](num_experts, expert_models, gate_model)
-            optimizer = optim.RMSprop(moe_model.parameters(),
+            if not key == 'single_model':
+                expert_models = experts(expert_layers_1, num_experts, num_classes)
+                gate_model = gate_layers_1(num_experts)
+                model = val['model'](num_experts, expert_models, gate_model)
+
+            else:
+                moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
+                model = single_model(moe_model_params, total_experts, num_classes)
+
+            model_params = sum([p.numel() for p in model.parameters()])
+            optimizer = optim.RMSprop(model.parameters(),
                                       lr=0.001, momentum=0.9)
-            hist = moe_model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
-            val['experts'][num_experts] = {'model':moe_model, 'history':hist}
+            hist = model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
 
@@ -193,22 +266,32 @@ def aggregate_results(runs, total_experts):
     for models in runs[1:]:
         for m_key, m_val in models.items():
             for expert in range(1, total_experts+1):
-                results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history']['loss']))
-                results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['accuracy']))
-                results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['val_accuracy']))
-                
+                results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['loss']))
+                results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['accuracy']))
+                results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['val_accuracy']))
+
     for m_key, m_val in models.items():
         for expert in range(1, total_experts+1):
             results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss'])/len(runs))
             results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy'])/len(runs))
             results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy'])/len(runs))
-                
+
     return results
+
+def log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp):
+    for m_key, m_val in results.items():
+        for i in range(1, total_experts+1):
+            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)])+',')
+            fp.write(str(m_val['experts'][i]['parameters'])+',')
+            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
+                               str(m_val['experts'][i]['history']['accuracy'][-1]),
+                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+
 
 def main():
 
     fp = open('results.csv', 'w')
-    col_names = ['dataset', 'number of classes', 'number of runs', 'epochs', 'number of parameters-total','number of parameters-expert','number of parameters-gate', 'model', 'number of experts','loss','training accuracy','validation accuracy']
+    col_names = ['dataset', 'number of classes', 'number of runs', 'epochs', 'number of parameters-total', 'model', 'number of experts','loss','training accuracy','validation accuracy']
     fp.write(','.join(col_names)+'\n')
 
     dataset =  'expert_0_gate_0_checker_board-1'
@@ -228,13 +311,8 @@ def main():
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
 
-    for m_key, m_val in results.items():
-        for i in range(1, total_experts+1):
-            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
-            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
-            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
-                               str(m_val['experts'][i]['history']['accuracy'][-1]),
-                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
@@ -242,7 +320,7 @@ def main():
     dataset =  'expert_0_gate_0_checker_board-2'
     total_experts = 20
     epochs = 40
-
+    
     runs = []
     for r in range(0, num_runs):
         models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
@@ -252,13 +330,8 @@ def main():
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
 
-    for m_key, m_val in results.items():
-        for i in range(1, total_experts+1):
-            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
-            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
-            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
-                               str(m_val['experts'][i]['history']['accuracy'][-1]),
-                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
@@ -276,13 +349,8 @@ def main():
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
 
-    for m_key, m_val in results.items():
-        for i in range(1, total_experts+1):
-            fp.write(','.join([dataset, str(num_classes), str(num_runs), str(epochs)]))
-            fp.write(str(sum([p.numel() for p in m_val['experts'][i]['model'].parameters() if p.requires_grad]))+',')
-            fp.write(','.join([m_key, str(i), str(m_val['experts'][i]['history']['loss'][-1]),
-                               str(m_val['experts'][i]['history']['accuracy'][-1]),
-                               str(m_val['experts'][i]['history']['val_accuracy'][-1])])+'\n')
+    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
