@@ -266,9 +266,9 @@ def aggregate_results(runs, total_experts):
     for models in runs[1:]:
         for m_key, m_val in models.items():
             for expert in range(1, total_experts+1):
-                results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['loss']))
-                results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['accuracy']))
-                results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history'][0]['val_accuracy']))
+                results[m_key]['experts'][expert]['history']['loss'] = list(np.asarray(results[m_key]['experts'][expert]['history']['loss']) +np.asarray(models[m_key]['experts'][expert]['history']['loss']))
+                results[m_key]['experts'][expert]['history']['accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['accuracy']))
+                results[m_key]['experts'][expert]['history']['val_accuracy'] = list(np.asarray(results[m_key]['experts'][expert]['history']['val_accuracy']) +np.asarray(models[m_key]['experts'][expert]['history']['val_accuracy']))
 
     for m_key, m_val in models.items():
         for expert in range(1, total_experts+1):
