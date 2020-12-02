@@ -5,7 +5,12 @@ import torch.nn.functional as F
 # The moe architecture that outputs an expected output of the experts
 # based on the gate probabilities
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    print('device', device)
+else:
+    device = torch.device("cpu")
+    print('device', device)
 
 class moe_expectation_model(nn.Module):
     
@@ -283,4 +288,7 @@ class moe_stochastic_model(nn.Module):
             train_running_accuracy = 0.0
             test_running_accuracy = 0.0
         return history
+
+
+    
 
