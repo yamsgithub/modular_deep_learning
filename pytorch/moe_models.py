@@ -17,8 +17,8 @@ class moe_expectation_model(nn.Module):
     def __init__(self, num_experts, experts, gate):
         super(moe_expectation_model,self).__init__()
         self.num_experts = num_experts
-        self.experts = experts
-        self.gate = gate
+        self.experts = experts.to(device)
+        self.gate = gate.to(device)
         
         
     def forward(self,input):   
@@ -41,7 +41,7 @@ class moe_expectation_model(nn.Module):
         # expected sum of expert outputs
         output = torch.sum(p*x, 1)
         
-        return output
+        return output.to(device)
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -54,13 +54,13 @@ class moe_expectation_model(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-
+                inputs, labels = inputs.to(device), labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
-                outputs = self(inputs)
-                loss = loss_criterion(outputs, labels)
+                outputs = self(inputs).to(device)
+                loss = loss_criterion(outputs, labels).to(device)
                 loss.backward()
 
                 optimizer.step()
@@ -73,8 +73,9 @@ class moe_expectation_model(nn.Module):
 
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
-                test_outputs = self(test_input)
+                test_inputs, test_labels = test_data
+               	test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)                
+                test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc/(j+1))
 
@@ -103,8 +104,8 @@ class moe_pre_softmax_expectation_model(nn.Module):
     def __init__(self, num_experts, experts, gate):
         super(moe_pre_softmax_expectation_model,self).__init__()
         self.num_experts = num_experts
-        self.experts = experts
-        self.gate = gate
+        self.experts = experts.to(device)
+        self.gate = gate.to(device)
         
         
     def forward(self,input):   
@@ -140,13 +141,13 @@ class moe_pre_softmax_expectation_model(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-
+                inputs, labels = inputs.to(device), labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
-                outputs = self(inputs)
-                loss = loss_criterion(outputs, labels)
+                outputs = self(inputs).to(device)
+                loss = loss_criterion(outputs, labels).to(device)
                 loss.backward()
 
                 optimizer.step()
@@ -159,8 +160,9 @@ class moe_pre_softmax_expectation_model(nn.Module):
 
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
-                test_outputs = self(test_input)
+                test_inputs, test_labels = test_data
+                test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)                
+                test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc/(j+1))
 
@@ -251,7 +253,7 @@ class moe_stochastic_model(nn.Module):
                 x = torch.stack(x)
                 p = gate_model(inputs)
 
-                loss = loss_criterion(x.to(device), p.to(device) , labels)
+                loss = loss_criterion(x.to(device), p.to(device) , labels).to(device)
                 loss.backward()
 
                 optimizer.step()
