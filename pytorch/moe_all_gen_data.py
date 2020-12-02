@@ -248,9 +248,9 @@ def main():
 
     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
 
-    num_runs = 2
-    total_experts = 2
-    epochs = 2
+    num_runs = 10
+    total_experts = 10
+    epochs = 20
 
     runs = []
     for r in range(0, num_runs):
