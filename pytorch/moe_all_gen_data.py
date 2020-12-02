@@ -28,6 +28,8 @@ from visualise_results import *
 
 from moe_models import moe_stochastic_model, moe_stochastic_loss, moe_expectation_model, moe_pre_softmax_expectation_model
 
+from single_model import single_model
+
 # ### Generate dataset for training
 
 def generate_data(dataset):
@@ -140,60 +142,6 @@ class gate_layers_1(nn.Module):
     def forward(self, input):
         return self.model(input)
 
-class single_model(nn.Module):
-    def __init__(self, parameters, num_experts, num_classes):
-        super(single_model, self).__init__()
-        output = float(parameters)/(2*(num_experts+1)*2)
-        if modf(output)[0] < 0.5:
-            output = floor(output)
-        else:
-            output = ceil(output)
-        if output <= 0.0:
-            output = 1
-        print('parameters', parameters, 'num_experts', num_experts+1, 'output', output)
-        self.model = nn.Sequential(
-            nn.Linear(2, output*4),
-            nn.ReLU(),
-            nn.Linear(output*4, num_classes),
-            nn.Softmax(dim=1)
-        )
-        
-    def forward(self, input):
-        return self.model(input)
-
-    def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):    
-
-        history = {'loss':[], 'accuracy':[], 'val_accuracy':[]}
-        for epoch in range(0, epochs):
-            running_loss = 0.0
-            training_accuracy = 0.0
-            test_accuracy = 0.0
-            for i, data in enumerate(trainloader, 0):
-                # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
-                
-                # zero the parameter gradients
-                optimizer.zero_grad()
-                
-                # forward + backward + optimize
-                outputs = self(inputs)
-                loss = loss_criterion(outputs, labels)
-                loss.backward()
-                optimizer.step()
-            
-                running_loss += loss.item()
-                training_accuracy += accuracy(outputs, labels)
-                
-            for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
-                test_outputs = self(test_input)
-                test_accuracy += accuracy(test_outputs, test_labels)
-            history['loss'].append(running_loss/(i+1))
-            history['accuracy'].append(training_accuracy/(i+1))
-            history['val_accuracy'].append(test_accuracy/(j+1))
-            print('epoch: %d loss: %.3f training accuracy: %.3f val accuracy: %.3f' %
-                  (epoch + 1, running_loss / (i+1), training_accuracy/(i+1), test_accuracy/(j+1)))
-        return history
 
 
 
@@ -300,9 +248,9 @@ def main():
 
     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
 
-    num_runs = 10
-    total_experts = 10
-    epochs = 20
+    num_runs = 2
+    total_experts = 2
+    epochs = 2
 
     runs = []
     for r in range(0, num_runs):
