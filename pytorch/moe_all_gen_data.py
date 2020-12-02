@@ -143,7 +143,7 @@ class gate_layers_1(nn.Module):
 class single_model(nn.Module):
     def __init__(self, parameters, num_experts, num_classes):
         super(single_model, self).__init__()
-        output = floaat(parameters)/(2*(num_experts+1)*2)
+        output = float(parameters)/(2*(num_experts+1)*2)
         if modf(output)[0] < 0.5:
             output = floor(output)
         else:
