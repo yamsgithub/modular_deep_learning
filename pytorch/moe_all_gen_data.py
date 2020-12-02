@@ -7,6 +7,8 @@ import seaborn as sns
                                         
 #get_ipython().run_line_magic('matplotlib', 'inline')
 
+import pickle
+
 from sklearn import datasets
 from sklearn.utils import resample
 from sklearn.model_selection import train_test_split
@@ -248,9 +250,9 @@ def main():
 
     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
 
-    num_runs = 10
-    total_experts = 10
-    epochs = 20
+    num_runs = 2
+    total_experts = 2
+    epochs = 2
 
     runs = []
     for r in range(0, num_runs):
@@ -260,6 +262,8 @@ def main():
     results = runs[0]
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
+
+    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
 
     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
     
@@ -268,8 +272,8 @@ def main():
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_0_gate_0_checker_board-2'
-    total_experts = 20
-    epochs = 40
+    total_experts = 2
+    epochs = 2
     
     runs = []
     for r in range(0, num_runs):
@@ -280,6 +284,8 @@ def main():
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
 
+    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+
     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
@@ -287,8 +293,8 @@ def main():
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_1_gate_1_checker_board-2'
-    total_experts = 20
-    epochs = 40
+    total_experts = 2
+    epochs = 2
 
     runs = []
     for r in range(0, num_runs):
@@ -298,6 +304,8 @@ def main():
     results = runs[0]
     if num_runs > 1:
         results = aggregate_results(runs, total_experts)
+
+    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
 
     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
