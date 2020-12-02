@@ -6,6 +6,13 @@ import numpy as np
 
 import torch
 
+if torch.cuda.is_available():
+    device = torch.device("cuda:0")
+    print('device', device)
+else:
+    device = torch.device("cpu")
+    print('device', device)
+
 # ### Visualise decision boundaries of mixture of expert model, expert model and gate model
 
 def plot_data(X, y, num_classes, save_as):
@@ -50,7 +57,7 @@ def predict(dataloader, model):
 
 def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
 
-    generated_data = create_meshgrid(X)
+    generated_data = create_meshgrid(X).to(device)
     
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
     
