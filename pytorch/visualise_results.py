@@ -39,7 +39,7 @@ def create_meshgrid(X):
 
 def labels(p, palette=['r','c','y','g']):
     pred_labels = torch.argmax(p, dim=1)+1
-    uniq_y = np.unique(pred_labels)
+    uniq_y = np.unique(pred_labels.cpu())
     pred_color = [palette[i-1] for i in uniq_y]
     return pred_color, pred_labels
 
@@ -50,6 +50,7 @@ def predict(dataloader, model):
         true_labels = []
         for i, data in enumerate(dataloader):
             inputs, labels = data
+            inputs, labels = inputs.to(device), labels.to(device)
             true_labels.append(labels)
             pred_labels.append(torch.argmax(model(inputs), dim=1))
             
@@ -57,7 +58,7 @@ def predict(dataloader, model):
 
 def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
 
-    generated_data = create_meshgrid(X).to(device)
+    generated_data = create_meshgrid(X)
     
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
     
@@ -82,10 +83,10 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
         
             moe_model = m_val['experts'][e]['model']
             
-            pred = moe_model(generated_data)
+            pred = moe_model(generated_data.to(device))
             pred_color,pred_labels = labels(pred)
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_labels,palette=pred_color, legend=False, ax=ax[index])
+                            hue=pred_labels.cpu(),palette=pred_color, legend=False, ax=ax[index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[index])
             ax[index].set_title('Mixture of Experts')
             ax[index].set_ylabel('Dim 2')
@@ -95,10 +96,10 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
             experts = moe_model.experts
 
             for i in range(0, e):
-                pred = experts[i](generated_data)
+                pred = experts[i](generated_data.to(device))
                 pred_color,pred_labels = labels(pred)
                 sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                                hue=pred_labels,palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
+                                hue=pred_labels.cpu(),palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
                 sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
                 
                 ax[((i+1)*3)+index].set_title('Expert '+str(i+1)+' Model')
@@ -106,22 +107,22 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
                 ax[((i+1)*3)+index].set_xlabel('Dim 1')
 
             palette = sns.husl_palette(total_experts)
-            pred_gate = moe_model.gate(generated_data)
+            pred_gate = moe_model.gate(generated_data.to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_gate_labels,palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
+                            hue=pred_gate_labels.cpu(),palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])
             ax[((e+1)*3)+index].set_title('Gate Model')
             ax[((e+1)*3)+index].set_ylabel('Dim 2')
             ax[((e+1)*3)+index].set_xlabel('Dim 1')
         
         
-            pred_gate = moe_model.gate(trainset[:][0])
+            pred_gate = moe_model.gate(trainset[:][0].to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
             sns.scatterplot(x=trainset[:][0][:,0],y=trainset[:][0][:,1],
-                            hue=pred_gate_labels,palette=pred_gate_color, ax=ax[((e+2)*3)+index])       
+                            hue=pred_gate_labels.cpu(),palette=pred_gate_color, ax=ax[((e+2)*3)+index])       
             
             
             index += 1
