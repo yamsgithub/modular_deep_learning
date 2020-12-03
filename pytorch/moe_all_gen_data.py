@@ -272,6 +272,9 @@ def main():
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_0_gate_0_checker_board-2'
+
+    X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
+    
     total_experts = 2
     epochs = 2
     
@@ -293,6 +296,7 @@ def main():
     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_1_gate_1_checker_board-2'
+
     total_experts = 2
     epochs = 2
 
