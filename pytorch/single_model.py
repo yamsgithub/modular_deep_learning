@@ -26,9 +26,9 @@ class single_model(nn.Module):
             output = 1
         print('parameters', parameters, 'num_experts', num_experts+1, 'output', output)
         self.model = nn.Sequential(
-            nn.Linear(2, output*4),
+            nn.Linear(2, (num_experts+1)*output),
             nn.ReLU(),
-            nn.Linear(output*4, num_classes),
+            nn.Linear((num_experts+1)*output, num_classes),
             nn.Softmax(dim=1)
         )
         self.model = self.model.to(device)
