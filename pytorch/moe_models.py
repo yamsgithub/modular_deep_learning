@@ -80,15 +80,16 @@ class moe_expectation_model(nn.Module):
             test_running_accuracy = (acc.cpu().numpy()/(j+1))
 
             running_loss = running_loss / (i+1)
-            train_running_accuracy = train_running_accuracy.numpy() / (i+1)
+            train_running_accuracy = train_running_accuracy.cpu().numpy() / (i+1)
+            
             history['loss'].append(running_loss)
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
 
             print('epoch %d' % epoch,
                   'training loss %.2f' % running_loss,
-                  ', training accuracy %.2f' % train_running_accuracy.numpy(),
-                  ', test accuracy %.2f' % test_running_accuracy.numpy())
+                  ', training accuracy %.2f' % train_running_accuracy,
+                  ', test accuracy %.2f' % test_running_accuracy)
             
             running_loss = 0.0
             train_running_accuracy = 0.0
@@ -163,18 +164,18 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)                
                 test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
-            test_running_accuracy = (acc/(j+1))
+            test_running_accuracy = (acc.cpu().numpy()/(j+1))
 
             running_loss = running_loss / (i+1)
-            train_running_accuracy = train_running_accuracy / (i+1)
+            train_running_accuracy = train_running_accuracy.cpu().numpy() / (i+1)
             history['loss'].append(running_loss)
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
 
             print('epoch %d' % epoch,
                   'training loss %.2f' % running_loss,
-                  ', training accuracy %.2f' % train_running_accuracy.numpy(),
-                  ', test accuracy %.2f' % test_running_accuracy.numpy())
+                  ', training accuracy %.2f' % train_running_accuracy,
+                  ', test accuracy %.2f' % test_running_accuracy)
             
             running_loss = 0.0
             train_running_accuracy = 0.0
@@ -268,18 +269,19 @@ class moe_stochastic_model(nn.Module):
                	    test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)
                     test_outputs = self(test_inputs)
                     acc += accuracy(test_outputs, test_labels)
-                test_running_accuracy = (acc.cpu()/(j+1))
+                test_running_accuracy = (acc.cpu().numpy()/(j+1))
 
             running_loss = running_loss / (i+1)
-            train_running_accuracy = train_running_accuracy.cpu() / (i+1)
+            train_running_accuracy = train_running_accuracy.cpu().numpy() / (i+1)
+            
             history['loss'].append(running_loss)
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
 
             print('epoch %d' % epoch,
                   'training loss %.2f' % running_loss,
-                  ', training accuracy %.2f' % train_running_accuracy.numpy(),
-                  ', test accuracy %.2f' % test_running_accuracy.numpy())
+                  ', training accuracy %.2f' % train_running_accuracy,
+                  ', test accuracy %.2f' % test_running_accuracy)
             running_loss = 0.0
             train_running_accuracy = 0.0
             test_running_accuracy = 0.0
