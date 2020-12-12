@@ -22,15 +22,16 @@ from math import ceil, floor, modf
 import torch
 import torchvision
 
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+# import torch.nn as nn
+# import torch.nn.functional as F
+# import torch.optim as optim
 
 from visualise_results import *
 
 from moe_models import moe_stochastic_model, moe_stochastic_loss, moe_expectation_model, moe_pre_softmax_expectation_model
+from experts_gates import *
 
-from single_model import single_model
+from single_model import *
 
 # ### Generate dataset for training
 
@@ -74,76 +75,6 @@ def generate_data(dataset):
 
     return X, y, trainset, trainloader, testset, testloader, num_classes
 
-# ### Networks and callbacks
-
-#Expert network
-class expert_layers(nn.Module):
-    def __init__(self, output):
-        super(expert_layers, self).__init__()
-        self.model = nn.Sequential(
-                    nn.Linear(2, 4),
-                    nn.ReLU(),
-                    nn.Linear(4,output),
-                    nn.Softmax(dim=1)
-                )        
-        
-    def forward(self, input):
-        return self.model(input)
-
-class expert_layers_1(nn.Module):
-    def __init__(self, output):
-        super(expert_layers_1, self).__init__()
-        self.model = nn.Sequential(
-            nn.Linear(2, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16, 4),
-            nn.ReLU(),
-            nn.Linear(4,output),
-            nn.Softmax(dim=1)
-        )        
-        
-    def forward(self, input):
-        return self.model(input)
-
-# create a set of experts
-def experts(expert_layers, num_experts, num_classes):
-    models = []
-    for i in range(num_experts):
-        models.append(expert_layers(num_classes))
-    return nn.ModuleList(models)
-
-
-#Gate network (Similar to the expert layer)
-class gate_layers(nn.Module):
-    def __init__(self, num_experts):
-        super(gate_layers, self).__init__()
-        self.model = nn.Sequential(
-                    nn.Linear(2, 4),
-                    nn.ReLU(),
-                    nn.Linear(4,num_experts),
-                    nn.Softmax(dim=1)
-                )
-        
-    def forward(self, input):
-        return self.model(input)
-
-class gate_layers_1(nn.Module):
-    def __init__(self, num_experts):
-        super(gate_layers_1, self).__init__()
-        self.model = nn.Sequential(
-            nn.Linear(2, 32),
-            nn.ReLU(),
-            nn.Linear(32, 16),
-            nn.ReLU(),
-            nn.Linear(16,num_experts),
-            nn.Softmax(dim=1)
-        )
-        
-    def forward(self, input):
-        return self.model(input)
-
 
 
 
@@ -173,7 +104,7 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
                 model = val['model'](num_experts, expert_models, gate_model)
             else:
                 moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
-                model = single_model(moe_model_params, num_experts, num_classes)
+                model = val['model'](moe_model_params, num_experts, num_classes)
 
             model_params = sum([p.numel() for p in model.parameters()])
             optimizer = optim.RMSprop(model.parameters(),
@@ -189,7 +120,7 @@ def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_c
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
               'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
-              'single_model': {'model':single_model, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
+              'single_model': {'model':single_model_complex, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
     }
     for key, val in models.items():
                                            
@@ -203,7 +134,7 @@ def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_c
 
             else:
                 moe_model_params = models['moe_stochastic_model']['experts'][num_experts]['parameters']
-                model = single_model(moe_model_params, num_experts, num_classes)
+                model = val['model'](moe_model_params, num_experts, num_classes)
 
             model_params = sum([p.numel() for p in model.parameters()])
             optimizer = optim.RMSprop(model.parameters(),
@@ -247,53 +178,53 @@ def main():
     fp.write(','.join(col_names)+'\n')
 
     dataset =  'expert_0_gate_0_checker_board-1'
-
-    X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
-
     num_runs = 2
-    total_experts = 2
-    epochs = 2
-
-    runs = []
-    for r in range(0, num_runs):
-        models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
-        runs.append(models)
     
-    results = runs[0]
-    if num_runs > 1:
-        results = aggregate_results(runs, total_experts)
+    # X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
 
-    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+    # total_experts = 2
+    # epochs = 2
 
-    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    # runs = []
+    # for r in range(0, num_runs):
+    #     models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+    #     runs.append(models)
     
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
-    
-    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # results = runs[0]
+    # if num_runs > 1:
+    #     results = aggregate_results(runs, total_experts)
 
-    dataset =  'expert_0_gate_0_checker_board-2'
+    # pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+
+    # log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    
+    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    
+    # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+
+    # dataset =  'expert_0_gate_0_checker_board-2'
 
     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
     
-    total_experts = 2
-    epochs = 2
+    # total_experts = 2
+    # epochs = 2
     
-    runs = []
-    for r in range(0, num_runs):
-        models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
-        runs.append(models)
+    # runs = []
+    # for r in range(0, num_runs):
+    #     models = run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+    #     runs.append(models)
     
-    results = runs[0]
-    if num_runs > 1:
-        results = aggregate_results(runs, total_experts)
+    # results = runs[0]
+    # if num_runs > 1:
+    #     results = aggregate_results(runs, total_experts)
 
-    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+    # pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
 
-    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    # log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
-    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     dataset =  'expert_1_gate_1_checker_board-2'
 
