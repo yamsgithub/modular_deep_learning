@@ -35,13 +35,13 @@ from single_model import *
 
 # ### Generate dataset for training
 
-def generate_data(dataset):
+def generate_data(dataset, size):
     num_classes = 2
     X = y = None
     if 'checker_board' in dataset:
         clf = int(dataset.split('-')[-1])
         
-        X = 2 * np.random.random((3000,2)) - 1
+        X = 2 * np.random.random((size,2)) - 1
         def classifier0(X):
             return (np.sum( X * X, axis=1) < 0.66 ).astype(float)
         def classifier1(X): # a 3x2 checkerboard pattern
@@ -114,13 +114,13 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
 
     return  models
 
-def run_experiment_1(dataset,  trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10):
+def run_experiment_1(dataset,  single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10):
     
     # experiment with models with different number of experts
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
               'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
-              'single_model': {'model':single_model_complex, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
+              'single_model': {'model':single_model, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
     }
     for key, val in models.items():
                                            
@@ -177,8 +177,10 @@ def main():
     col_names = ['dataset', 'number of classes', 'number of runs', 'epochs', 'number of parameters-total', 'model', 'number of experts','loss','training accuracy','validation accuracy']
     fp.write(','.join(col_names)+'\n')
 
-    dataset =  'expert_0_gate_0_checker_board-1'
+    
     num_runs = 2
+
+    #dataset =  'expert_0_gate_0_checker_board-1'
     
     # X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
 
@@ -204,7 +206,7 @@ def main():
 
     # dataset =  'expert_0_gate_0_checker_board-2'
 
-    X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
+    #X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset)
     
     # total_experts = 2
     # epochs = 2
@@ -226,28 +228,53 @@ def main():
     
     # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    dataset =  'expert_1_gate_1_checker_board-2'
-
-    total_experts = 2
-    epochs = 2
-
-    runs = []
-    for r in range(0, num_runs):
-        models = run_experiment_1(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
-        runs.append(models)
+    for size in [3000, 5000, 8000]:
+        dataset =  'expert_1_gate_1_single_shallow_checker_board_'+str(size)+'-2'
+        X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
+        
+        total_experts = 2
+        epochs = 2
+        
+        runs = []
+        for r in range(0, num_runs):
+            models = run_experiment_1(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+            runs.append(models)
     
-    results = runs[0]
-    if num_runs > 1:
-        results = aggregate_results(runs, total_experts)
+        results = runs[0]
+        if num_runs > 1:
+            results = aggregate_results(runs, total_experts)
+            
+        pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+        
+        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+        
+        plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        
+        plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+    for size in [3000, 5000, 8000]:
+        dataset =  'expert_1_gate_1_single_deep_checker_board_'+str(size)+'-2'
 
-    log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
-
-    plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        total_experts = 2
+        epochs = 2
+        
+        runs = []
+        for r in range(0, num_runs):
+            models = run_experiment_1(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+            runs.append(models)
     
-    plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
-    
+        results = runs[0]
+        if num_runs > 1:
+            results = aggregate_results(runs, total_experts)
+
+        pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+
+        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+        
+        plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        
+        plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+        
     fp.close()
 
 
