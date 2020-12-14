@@ -25,6 +25,7 @@ def plot_data(X, y, num_classes, save_as):
     plt.savefig(save_as)
     #plt.show()
     plt.clf()
+    plt.close()
     
 def create_meshgrid(X):
     #create meshgrid
@@ -129,6 +130,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
         plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
         #plt.show()
         plt.clf()
+        plt.close()
 
 def plot_accuracy(models, total_experts, save_as):
     labels = []
@@ -148,6 +150,7 @@ def plot_accuracy(models, total_experts, save_as):
     plt.savefig(save_as)
     #plt.show()
     plt.clf()
+    plt.close()
 
 
 def plot_accuracy_by_experts(models, total_experts, save_as):
@@ -168,5 +171,6 @@ def plot_accuracy_by_experts(models, total_experts, save_as):
         plt.savefig('figures/all/accuracy_'+model_name+'_'+dataset+'_'+ str(num_classes)+'_experts_.png')
         #plt.show()
         plt.clf()
+        plt.close()
 
 
