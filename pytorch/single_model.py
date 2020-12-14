@@ -16,9 +16,9 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
-class single_model(nn.Module):
+class single_model_shallow(nn.Module):
     def __init__(self, parameters, num_experts, num_classes):
-        super(single_model, self).__init__()
+        super(single_model_shallow, self).__init__()
         output = float(parameters)/(2*(num_experts+1)*2)
         if modf(output)[0] < 0.5:
             output = floor(output)
@@ -76,9 +76,9 @@ class single_model(nn.Module):
                   (epoch + 1, running_loss / (i+1), training_accuracy/(i+1), test_accuracy/(j+1)))
         return history
 
-class single_model_complex(nn.Module):
+class single_model_deep(nn.Module):
     def __init__(self, parameters, num_experts, num_classes):
-        super(single_model_complex, self).__init__()
+        super(single_model_deep, self).__init__()
         output = float(parameters)/(4*(num_experts+1)*8)
         output = (sqrt(6*parameters + 9)/3 - 1)/(num_experts + 1)
         # if modf(output)[0] < 0.5:
