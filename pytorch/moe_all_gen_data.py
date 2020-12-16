@@ -228,35 +228,35 @@ def main():
     
     # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    for size in [3000, 5000, 8000]:
-        dataset =  'expert_1_gate_1_single_shallow_checker_board_'+str(size)+'-2'
-        X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
+    # for size in [3000, 5000, 8000]:
+    #     dataset =  'expert_1_gate_1_single_shallow_checker_board_'+str(size)+'-2'
+    #     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
         
-        total_experts = 2
-        epochs = 2
+    #     total_experts = 2
+    #     epochs = 2
         
-        runs = []
-        for r in range(0, num_runs):
-            models = run_experiment_1(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
-            runs.append(models)
+    #     runs = []
+    #     for r in range(0, num_runs):
+    #         models = run_experiment_1(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
+    #         runs.append(models)
     
-        results = runs[0]
-        if num_runs > 1:
-            results = aggregate_results(runs, total_experts)
+    #     results = runs[0]
+    #     if num_runs > 1:
+    #         results = aggregate_results(runs, total_experts)
             
-        pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+    #     pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
         
-        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    #     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
         
-        plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    #     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-        plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    #     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     for size in [3000, 5000, 8000]:
         dataset =  'expert_1_gate_1_single_deep_checker_board_'+str(size)+'-2'
 
-        total_experts = 2
-        epochs = 2
+        total_experts = 20
+        epochs = 40
         
         runs = []
         for r in range(0, num_runs):
