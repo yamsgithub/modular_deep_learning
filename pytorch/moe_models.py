@@ -41,7 +41,7 @@ class moe_expectation_model(nn.Module):
         # expected sum of expert outputs
         output = torch.sum(p*x, 1)
         
-        return output.to(device)
+        return output
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -59,8 +59,8 @@ class moe_expectation_model(nn.Module):
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
-                outputs = self(inputs).to(device)
-                loss = loss_criterion(outputs, labels).to(device)
+                outputs = self(inputs)
+                loss = loss_criterion(outputs, labels)
                 loss.backward()
 
                 optimizer.step()
@@ -128,7 +128,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
         # expected sum of expert outputs
         output = F.softmax(torch.sum(p*x, 1), dim=1)
         
-        return output.to(device)
+        return output
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -146,8 +146,8 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
-                outputs = self(inputs).to(device)
-                loss = loss_criterion(outputs, labels).to(device)
+                outputs = self(inputs)
+                loss = loss_criterion(outputs, labels)
                 loss.backward()
 
                 optimizer.step()
@@ -222,7 +222,7 @@ class moe_stochastic_model(nn.Module):
         else:
             output = self.experts[0](input)
 
-        return output.to(device)
+        return output
     
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):
         expert_models = self.experts
@@ -245,13 +245,11 @@ class moe_stochastic_model(nn.Module):
                 x = []
                 for j, expert in enumerate(expert_models):
                     outputs = expert(inputs)
-                    #print(outputs)
                     x.append(outputs)
-                #print(x, len(x))
                 x = torch.stack(x)
                 p = gate_model(inputs)
 
-                loss = loss_criterion(x.to(device), p.to(device) , labels).to(device)
+                loss = loss_criterion(x.to(device, non_blocking=True), p.to(device, non_blocking=True) , labels)
                 loss.backward()
 
                 optimizer.step()
