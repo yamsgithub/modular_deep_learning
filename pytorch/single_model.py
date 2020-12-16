@@ -53,7 +53,8 @@ class single_model_shallow(nn.Module):
             running_loss = 0.0
             training_accuracy = 0.0
             test_accuracy = 0.0
-            for i, data in enumerate(trainloader, 0):
+            i = 0
+            for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
@@ -69,12 +70,15 @@ class single_model_shallow(nn.Module):
             
                 running_loss += loss.item()
                 training_accuracy += accuracy(outputs, labels)
-                
-            for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
-                test_input, test_labels = test_input.to(device), test_labels.to(device)
+
+                i += 1
+
+            j = 0
+            for test_input, test_labels in testloader:
+                test_input, test_labels = test_input.to(device, non_blocking=True ), test_labels.to(device, non_blocking=True)
                 test_outputs = self(test_input)
                 test_accuracy += accuracy(test_outputs, test_labels)
+                j+=1
             history['loss'].append(running_loss/(i+1))
             history['accuracy'].append(training_accuracy/(i+1))
             history['val_accuracy'].append(test_accuracy/(j+1))
@@ -87,10 +91,6 @@ class single_model_deep(nn.Module):
         super(single_model_deep, self).__init__()
         output = float(parameters)/(4*(num_experts+1)*8)
         output = (sqrt(6*parameters + 9)/3 - 1)/(num_experts + 1)
-        # if modf(output)[0] < 0.5:
-        #     output = floor(output)
-        # else:
-        #     output = ceil(output)
         output = ceil(output)
             
         if output <= 0.0:
@@ -128,9 +128,9 @@ class single_model_deep(nn.Module):
             running_loss = 0.0
             training_accuracy = 0.0
             test_accuracy = 0.0
-            for i, data in enumerate(trainloader, 0):
+            i = 0
+            for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 
                 # zero the parameter gradients
@@ -144,12 +144,15 @@ class single_model_deep(nn.Module):
             
                 running_loss += loss.item()
                 training_accuracy += accuracy(outputs, labels)
-                
-            for j, test_data in enumerate(testloader, 0):
-                test_input, test_labels = test_data
+
+                i+=1
+
+            j = 0
+            for test_input, test_labels in testloader:
                 test_input, test_labels = test_input.to(device), test_labels.to(device)
                 test_outputs = self(test_input)
                 test_accuracy += accuracy(test_outputs, test_labels)
+                j==1
             history['loss'].append(running_loss/(i+1))
             history['accuracy'].append(training_accuracy/(i+1))
             history['val_accuracy'].append(test_accuracy/(j+1))
