@@ -254,7 +254,8 @@ def main():
 
     for size in [3000, 5000, 8000]:
         dataset =  'expert_1_gate_1_single_deep_checker_board_'+str(size)+'-2'
-
+        X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
+        
         total_experts = 20
         epochs = 40
         
