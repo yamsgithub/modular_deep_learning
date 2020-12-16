@@ -47,14 +47,14 @@ class moe_expectation_model(nn.Module):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
-        train_running_accuracy = 0.0
+        train_running_accuracy = 0.0 
         test_running_accuracy = 0.0
         history = {'loss':[], 'accuracy':[], 'val_accuracy':[]}
         for epoch in range(epochs):  # loop over the dataset multiple times
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -74,7 +74,7 @@ class moe_expectation_model(nn.Module):
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
                 test_inputs, test_labels = test_data
-               	test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)                
+               	test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
                 test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc.cpu().numpy()/(j+1))
@@ -141,7 +141,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
@@ -161,7 +161,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
             acc = 0.0
             for j, test_data in enumerate(testloader, 0):
                 test_inputs, test_labels = test_data
-                test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)                
+                test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
                 test_outputs = self(test_inputs)
                 acc += accuracy(test_outputs, test_labels)
             test_running_accuracy = (acc.cpu().numpy()/(j+1))
@@ -235,7 +235,7 @@ class moe_stochastic_model(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 #print(inputs)
 
 
@@ -266,7 +266,7 @@ class moe_stochastic_model(nn.Module):
                 acc = 0.0
                 for j, test_data in enumerate(testloader, 0):
                	    test_inputs, test_labels = test_data
-               	    test_inputs, test_labels = test_inputs.to(device), test_labels.to(device)
+               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)
                     test_outputs = self(test_inputs)
                     acc += accuracy(test_outputs, test_labels)
                 test_running_accuracy = (acc.cpu().numpy()/(j+1))
