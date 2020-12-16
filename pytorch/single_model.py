@@ -17,7 +17,7 @@ else:
     print('device', device)
 
 class single_model_shallow(nn.Module):
-    def __init__(self, parameters, num_experts, num_classes):
+    def __init__(self, parameters, num_experts, num_classes, bias=None):
         super(single_model_shallow, self).__init__()
         output = float(parameters)/(2*(num_experts+1)*2)
         if modf(output)[0] < 0.5:
@@ -34,11 +34,17 @@ class single_model_shallow(nn.Module):
             'softmax':nn.Softmax(dim=1)
             })
         )
+        if not bias is None:
+            layers = dict(self.model.named_children())
+            with torch.no_grad():
+                layers['linear_1'].bias.fill_(bias)
+                layers['linear_2'].bias.fill_(bias)
+            
         self.model = self.model.to(device)
         
         
     def forward(self, input):
-        return self.model(input).to(device)
+        return self.model(input)
 
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):    
 
@@ -50,14 +56,14 @@ class single_model_shallow(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 
                 # forward + backward + optimize
                 outputs = self(inputs)
-                loss = loss_criterion(outputs.to(device), labels).to(device)
+                loss = loss_criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
             
@@ -77,7 +83,7 @@ class single_model_shallow(nn.Module):
         return history
 
 class single_model_deep(nn.Module):
-    def __init__(self, parameters, num_experts, num_classes):
+    def __init__(self, parameters, num_experts, num_classes, bias=None):
         super(single_model_deep, self).__init__()
         output = float(parameters)/(4*(num_experts+1)*8)
         output = (sqrt(6*parameters + 9)/3 - 1)/(num_experts + 1)
@@ -101,11 +107,19 @@ class single_model_deep(nn.Module):
             'softmax':nn.Softmax(dim=1)
         })
         )
+        if not bias is None:
+            layers = dict(self.model.named_children())
+            with torch.no_grad():
+                layers['linear_1'].bias.fill_(bias)
+                layers['linear_2'].bias.fill_(bias)
+                layers['linear_3'].bias.fill_(bias)
+                layers['linear_4'].bias.fill_(bias)
+
         self.model = self.model.to(device)
         
         
     def forward(self, input):
-        return self.model(input).to(device)
+        return self.model(input)
 
     def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):    
 
@@ -117,14 +131,14 @@ class single_model_deep(nn.Module):
             for i, data in enumerate(trainloader, 0):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 
                 # zero the parameter gradients
                 optimizer.zero_grad()
                 
                 # forward + backward + optimize
                 outputs = self(inputs)
-                loss = loss_criterion(outputs.to(device), labels).to(device)
+                loss = loss_criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
             
