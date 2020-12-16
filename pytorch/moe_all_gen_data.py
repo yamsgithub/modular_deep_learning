@@ -66,11 +66,11 @@ def generate_data(dataset, size):
     trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
                                               torch.tensor(y_train, dtype=torch.long))
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
-                                              shuffle=True, num_workers=2)
+                                              shuffle=True, num_workers=1, pin_memory=True)
     testset = torch.utils.data.TensorDataset(torch.tensor(x_test, dtype=torch.float32),
                                              torch.tensor(y_test, dtype=torch.long))
     testloader = torch.utils.data.DataLoader(testset, batch_size=len(testset),
-                                             shuffle=True, num_workers=2)
+                                             shuffle=True, num_workers=1, pin_memory=True)
 
 
     return X, y, trainset, trainloader, testset, testloader, num_classes
