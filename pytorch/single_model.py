@@ -81,9 +81,9 @@ class single_model_shallow(nn.Module):
                 j+=1
             history['loss'].append(running_loss/(i+1))
             history['accuracy'].append(training_accuracy/(i+1))
-            history['val_accuracy'].append(test_accuracy/(j+1))
+            history['val_accuracy'].append(test_accuracy/j)
             print('epoch: %d loss: %.3f training accuracy: %.3f val accuracy: %.3f' %
-                  (epoch + 1, running_loss / (i+1), training_accuracy/(i+1), test_accuracy/(j+1)))
+                  (epoch + 1, running_loss / i, training_accuracy/i, test_accuracy/j))
         return history
 
 class single_model_deep(nn.Module):
@@ -152,10 +152,10 @@ class single_model_deep(nn.Module):
                 test_input, test_labels = test_input.to(device), test_labels.to(device)
                 test_outputs = self(test_input)
                 test_accuracy += accuracy(test_outputs, test_labels)
-                j==1
-            history['loss'].append(running_loss/(i+1))
-            history['accuracy'].append(training_accuracy/(i+1))
-            history['val_accuracy'].append(test_accuracy/(j+1))
+                j+=1
+            history['loss'].append(running_loss/i)
+            history['accuracy'].append(training_accuracy/i)
+            history['val_accuracy'].append(test_accuracy/j)
             print('epoch: %d loss: %.3f training accuracy: %.3f val accuracy: %.3f' %
-                  (epoch + 1, running_loss / (i+1), training_accuracy/(i+1), test_accuracy/(j+1)))
+                  (epoch + 1, running_loss / i, training_accuracy/i, test_accuracy/j))
         return history
