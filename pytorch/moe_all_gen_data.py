@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 
 import numpy as np
 from statistics import mean
-from math import ceil, floor, modf
+from math import ceil, floor, modf, sin, cos
 
 
 import torch
@@ -38,7 +38,46 @@ from single_model import *
 def generate_data(dataset, size):
     num_classes = 2
     X = y = None
-    if 'checker_board' in dataset:
+    if 'checker_board_rotated' in dataset:
+        num_classes = 2
+        x_a = [-1.0,-1.0,0.0,0.0]
+        x_b = [0.0,0.0,1.0,1.0]
+        y_a = [-1.0,0.0,-1.0,0.0]
+        y_b = [0.0,1.0,0.0,1.0]
+        X = 2 * np.random.random((size,2)) - 1
+        def classifier4(X): # a 4x4 checkerboard pattern -- you can use the same method to make up your own checkerboard patterns
+            return (np.sum( np.ceil( 2 * X).astype(int), axis=1 ) % 2).astype(float)
+        y = classifier4(X)
+
+        deg = [30,45,180,270]
+        X_new = None
+        y_new = None
+        for i in range(0,4):
+            rm = np.asarray([[cos(deg[i]),-1*sin(deg[i])],
+                             [sin(deg[i]),cos(deg[i])]])
+            index = (X[:,0]>=x_a[i])&(X[:,0]<=x_b[i])&(X[:,1]>=y_a[i])&(X[:,1]<=y_b[i])
+            X_sub = X[index]
+            X_tmp = np.transpose(np.dot(rm, np.transpose(X_sub)))
+            r_min = X_tmp[:,0].min()
+            r_max = X_tmp[:,0].max()
+            X_tmp[:,0] = ((x_b[i]-x_a[i])*(X_tmp[:,0]-r_min)/(r_max-r_min))+x_a[i]
+            r_min = X_tmp[:,1].min()
+            r_max = X_tmp[:,1].max()
+            X_tmp[:,1] = ((y_b[i]-y_a[i])*(X_tmp[:,1]-r_min)/(r_max-r_min))+y_a[i]
+            
+            if not X_new is None:
+                X_new = np.vstack((X_new,X_tmp))
+            else:
+                X_new = X_tmp
+            if not y_new is None:
+                y_new = np.concatenate((y_new, y[index]))
+            else:
+                y_new = y[index]
+    
+        X = X_new
+        y = y_new
+
+    elif 'checker_board' in dataset:
         clf = int(dataset.split('-')[-1])
         
         X = 2 * np.random.random((size,2)) - 1
@@ -52,6 +91,7 @@ def generate_data(dataset, size):
 
         y = classifiers[clf]( X )
 
+
     plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'_.png')
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
@@ -62,7 +102,7 @@ def generate_data(dataset, size):
     print(sum(y_test))
 
     # Create trainloader
-    batchsize = 32
+    batchsize = 128
     trainset = torch.utils.data.TensorDataset(torch.tensor(x_train, dtype=torch.float32), 
                                               torch.tensor(y_train, dtype=torch.long))
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batchsize,
@@ -253,7 +293,7 @@ def main():
     #     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     for size in [3000, 5000, 8000]:
-        dataset =  'expert_1_gate_1_single_deep_checker_board_'+str(size)+'-2'
+        dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
         X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
         
         total_experts = 20
