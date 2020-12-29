@@ -16,7 +16,7 @@ else:
 # ### Visualise decision boundaries of mixture of expert model, expert model and gate model
 
 def plot_data(X, y, num_classes, save_as):
-    f, ax = plt.subplots(nrows=1, ncols=1,figsize=(15,8))
+    f, ax = plt.subplots(nrows=1, ncols=1,figsize=(8,8))
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple'][0:num_classes]
     sns.scatterplot(x=X[:,0],y=X[:,1],hue=y,palette=colors, ax=ax)
     ax.set_title("2D 3 classes Generated Data")
@@ -61,7 +61,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
 
     generated_data = create_meshgrid(X)
     
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
+    colors = ['y', 'tab:purple', 'tab:green', 'tab:orange']
     
     for e in range(1, total_experts+1):
         nrows = (e*1)+3
@@ -107,7 +107,8 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
                 ax[((i+1)*3)+index].set_ylabel('Dim 2')
                 ax[((i+1)*3)+index].set_xlabel('Dim 1')
 
-            palette = sns.husl_palette(total_experts)
+            #palette = sns.husl_palette(total_experts)
+            palette = sns.color_palette("Paired")+sns.color_palette('Set2')
             pred_gate = moe_model.gate(generated_data.to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
