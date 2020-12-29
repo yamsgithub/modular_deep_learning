@@ -16,7 +16,7 @@ from sklearn.preprocessing import StandardScaler
 
 import numpy as np
 from statistics import mean
-from math import ceil, floor, modf, sin, cos
+from math import ceil, floor, modf, sin, cos, radians
 
 
 import torch
@@ -49,15 +49,28 @@ def generate_data(dataset, size):
             return (np.sum( np.ceil( 2 * X).astype(int), axis=1 ) % 2).astype(float)
         y = classifier4(X)
 
-        deg = [30,45,180,270]
+        deg = [radians(30),radians(45),radians(60),radians(120)]
         X_new = None
         y_new = None
         for i in range(0,4):
             rm = np.asarray([[cos(deg[i]),-1*sin(deg[i])],
                              [sin(deg[i]),cos(deg[i])]])
+            # select the corresponding rectangle from the checkerboard
             index = (X[:,0]>=x_a[i])&(X[:,0]<=x_b[i])&(X[:,1]>=y_a[i])&(X[:,1]<=y_b[i])
             X_sub = X[index]
+
+            # translate bottom left corner of the corresponding rectangle to origin for rotation
+            X_sub[:,0] = X_sub[:,0]-x_a[i]
+            X_sub[:,1] = X_sub[:,1]-y_a[i]
+
+            # rotate
             X_tmp = np.transpose(np.dot(rm, np.transpose(X_sub)))
+
+            # translate back bottom left corner of the corresponding rectangle
+            X_tmp[:,0] = X_tmp[:,0]+x_a[i]
+            X_tmp[:,1] = X_tmp[:,1]+y_a[i]
+
+            # normalize to corresponding x and y limits
             r_min = X_tmp[:,0].min()
             r_max = X_tmp[:,0].max()
             X_tmp[:,0] = ((x_b[i]-x_a[i])*(X_tmp[:,0]-r_min)/(r_max-r_min))+x_a[i]
@@ -296,8 +309,8 @@ def main():
         dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
         X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
         
-        total_experts = 20
-        epochs = 40
+        total_experts = 2
+        epochs = 2
         
         runs = []
         for r in range(0, num_runs):
@@ -308,7 +321,7 @@ def main():
         if num_runs > 1:
             results = aggregate_results(runs, total_experts)
 
-        pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
+        torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
 
         log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
         
