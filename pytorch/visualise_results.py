@@ -27,16 +27,6 @@ def plot_data(X, y, num_classes, save_as):
     plt.clf()
     plt.close()
     
-def create_meshgrid(X):
-    #create meshgrid
-    resolution = 100 # 100x100 background pixels
-    a2d_min, a2d_max = np.min(X[:,0]), np.max(X[:,0])
-    b2d_min, b2d_max = np.min(X[:,1]), np.max(X[:,1])
-    a, b = np.meshgrid(np.linspace(a2d_min, a2d_max, resolution), 
-                       np.linspace(b2d_min, b2d_max, resolution))
-    generated_data = torch.tensor(np.c_[a.ravel(), b.ravel()], dtype=torch.float32)
-
-    return generated_data
 
 def labels(p, palette=['r','c','y','g']):
     pred_labels = torch.argmax(p, dim=1)+1
@@ -57,10 +47,8 @@ def predict(dataloader, model):
             
         return torch.stack(true_labels), torch.stack(pred_labels)
 
-def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
+def plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
 
-    generated_data = create_meshgrid(X)
-    
     colors = ['y', 'tab:purple', 'tab:green', 'tab:orange']
     
     for e in range(1, total_experts+1):
@@ -133,7 +121,7 @@ def plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, 
         plt.clf()
         plt.close()
 
-def plot_accuracy(models, total_experts, save_as):
+def plot_error_rate(models, total_experts, save_as):
     labels = []
     plt.figure(figsize=(20,10))
     for m_key, m_val in models.items():
@@ -142,14 +130,14 @@ def plot_accuracy(models, total_experts, save_as):
         for i in range(1, total_experts+1):                
             history = m_val['experts'][i]['history']
             accuracies.append(history['accuracy'][-1])
-        plt.plot(range(1,len(accuracies)+1), accuracies)
+        # Plot error rate (1-accuracy) 
+        plt.plot(range(1,len(accuracies)+1), 1-np.asarray(accuracies))
     plt.legend(labels)
     plt.ylim(0, 1)
     plt.xticks(range(1, total_experts+1), [str(i) for i in range(1, total_experts+1)])
     plt.xlabel('Number of Experts')
-    plt.ylabel('Accuracy')
+    plt.ylabel('Error rate')
     plt.savefig(save_as)
-    #plt.show()
     plt.clf()
     plt.close()
 
