@@ -34,7 +34,7 @@ class moe_expectation_model(nn.Module):
         # to each expert
         p = p.reshape(p.shape[0],p.shape[1], 1)
         
-        # repear probabilities number of classes times so
+        # repeat probabilities number of classes times so
         # dimensions correspond
         p = p.repeat(1,1,x.shape[2])
         
@@ -66,20 +66,21 @@ class moe_expectation_model(nn.Module):
                 optimizer.step()
 
                 running_loss += loss.item()
-              
+
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
 
                 i+=1
-
-            acc = 0.0
-            j = 0
-            for test_inputs, test_labels in testloader:
-               	test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
-                test_outputs = self(test_inputs)
-                acc += accuracy(test_outputs, test_labels)
-                j += 1
-            test_running_accuracy = (acc.cpu().numpy()/j)
+            
+            with torch.no_grad():
+                acc = 0.0
+                j = 0
+                for test_inputs, test_labels in testloader:
+               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+                    test_outputs = self(test_inputs)
+                    acc += accuracy(test_outputs, test_labels)
+                    j += 1
+                test_running_accuracy = (acc.cpu().numpy()/j)
 
             running_loss = running_loss / i
             train_running_accuracy = train_running_accuracy.cpu().numpy() / i
@@ -160,15 +161,16 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 train_running_accuracy += acc
 
                 i+=1
-
-            acc = 0.0
-            j = 0
-            for test_inputs, test_labels in testloader:
-                test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
-                test_outputs = self(test_inputs)
-                acc += accuracy(test_outputs, test_labels)
-                j += 1
-            test_running_accuracy = (acc.cpu().numpy()/j)
+                
+            with torch.no_grad():
+                acc = 0.0
+                j = 0
+                for test_inputs, test_labels in testloader:
+                    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+                    test_outputs = self(test_inputs)
+                    acc += accuracy(test_outputs, test_labels)
+                    j += 1
+                test_running_accuracy = (acc.cpu().numpy()/j)
 
             running_loss = running_loss / i
             train_running_accuracy = train_running_accuracy.cpu().numpy() / i
