@@ -156,7 +156,7 @@ def main():
     fp.write(','.join(col_names)+'\n')
 
     
-    num_runs = 1
+    num_runs = 2
 
     #dataset =  'expert_0_gate_0_checker_board-1'
     
@@ -254,12 +254,12 @@ def main():
         
     #     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    for size in [3000]:#, 5000, 8000]:
+    for size in [3000, 5000, 8000]:
         dataset =  'expert_1_gate_1_single_deep_escort_checker_board_rotated_'+str(size)
         X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
         
-        total_experts = 3
-        epochs = 10
+        total_experts = 20
+        epochs = 40
         
         runs = []
         for r in range(0, num_runs):
