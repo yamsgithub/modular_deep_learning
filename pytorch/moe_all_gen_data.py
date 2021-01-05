@@ -180,7 +180,7 @@ def main():
     
     # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
-    # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     # dataset =  'expert_0_gate_0_checker_board-2'
 
@@ -204,7 +204,7 @@ def main():
 
     # plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
     
-    # plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     # for size in [3000, 5000, 8000]:
     #     dataset =  'expert_1_gate_1_single_shallow_checker_board_'+str(size)+'-2'
@@ -228,7 +228,7 @@ def main():
         
     #     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-    #     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     # for size in [3000]:#, 5000, 8000]:
     #     dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
@@ -252,7 +252,7 @@ def main():
         
     #     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-    #     plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     for size in [3000, 5000, 8000]:
         dataset =  'expert_1_gate_1_single_deep_escort_checker_board_rotated_'+str(size)
@@ -277,7 +277,7 @@ def main():
         generated_data = data_generator.create_meshgrid(X)
         plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-        plot_accuracy(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+        plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
         
     fp.close()
