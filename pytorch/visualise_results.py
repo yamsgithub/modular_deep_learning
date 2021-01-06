@@ -77,7 +77,7 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
                             hue=pred_labels.cpu(),palette=pred_color, legend=False, ax=ax[index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[index])
-            ax[index].set_title('Mixture of Experts')
+            ax[index].set_title(' '.join(m_key.split('_')))
             ax[index].set_ylabel('Dim 2')
             ax[index].set_xlabel('Dim 1')
             
@@ -117,7 +117,6 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             
             index += 1
         plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
-        #plt.show()
         plt.clf()
         plt.close()
 
