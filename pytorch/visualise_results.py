@@ -13,12 +13,12 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
-# ### Visualise decision boundaries of mixture of expert model, expert model and gate model
+colors = ['y', 'tab:purple', 'tab:green', 'tab:orange','tab:blue', 'tab:red']
 
+# ### Visualise decision boundaries of mixture of expert model, expert model and gate model
 def plot_data(X, y, num_classes, save_as):
     f, ax = plt.subplots(nrows=1, ncols=1,figsize=(8,8))
-    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple'][0:num_classes]
-    sns.scatterplot(x=X[:,0],y=X[:,1],hue=y,palette=colors, ax=ax)
+    sns.scatterplot(x=X[:,0],y=X[:,1],hue=y,palette=colors[0:num_classes], ax=ax)
     ax.set_title("2D 3 classes Generated Data")
     plt.ylabel('Dim 2')
     plt.xlabel('Dim 1')
@@ -28,7 +28,7 @@ def plot_data(X, y, num_classes, save_as):
     plt.close()
     
 
-def labels(p, palette=['r','c','y','g']):
+def labels(p, palette=['r','c','y','g','b','tab:pink']):
     pred_labels = torch.argmax(p, dim=1)+1
     uniq_y = np.unique(pred_labels.cpu())
     pred_color = [palette[i-1] for i in uniq_y]
@@ -49,8 +49,6 @@ def predict(dataloader, model):
 
 def plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
 
-    colors = ['y', 'tab:purple', 'tab:green', 'tab:orange']
-    
     for e in range(1, total_experts+1):
         nrows = (e*1)+3
         ncols = 3
@@ -74,9 +72,10 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             
             pred = moe_model(generated_data.to(device))
             pred_color,pred_labels = labels(pred)
+            pred_labels_order = np.unique(pred_labels)
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_labels.cpu(),palette=pred_color, legend=False, ax=ax[index])
-            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[index])
+                            hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[index])
+            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)),palette=colors[0:num_classes], ax=ax[index])
             ax[index].set_title(' '.join(m_key.split('_')))
             ax[index].set_ylabel('Dim 2')
             ax[index].set_xlabel('Dim 1')
@@ -87,9 +86,10 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             for i in range(0, e):
                 pred = experts[i](generated_data.to(device))
                 pred_color,pred_labels = labels(pred)
+                pred_labels_order = np.unique(pred_labels)
                 sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                                hue=pred_labels.cpu(),palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
-                sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
+                                hue=pred_labels.cpu(),, hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
+                sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
                 
                 ax[((i+1)*3)+index].set_title('Expert '+str(i+1)+' Model')
                 ax[((i+1)*3)+index].set_ylabel('Dim 2')
@@ -99,10 +99,10 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             palette = sns.color_palette("Paired")+sns.color_palette('Set2')
             pred_gate = moe_model.gate(generated_data.to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
-            
+            pred_gate_labels_order = np.unique(pred_labels)
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_gate_labels.cpu(),palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
-            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])
+                            hue=pred_gate_labels.cpu(), hue_order=pred_gate_labels_order, palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
+            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])
             ax[((e+1)*3)+index].set_title('Gate Model')
             ax[((e+1)*3)+index].set_ylabel('Dim 2')
             ax[((e+1)*3)+index].set_xlabel('Dim 1')
