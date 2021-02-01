@@ -46,7 +46,7 @@ class single_model_shallow(nn.Module):
     def forward(self, input):
         return self.model(input)
 
-    def train(self, trainloader, testloader, optimizer, loss_criterion, accuracy, epochs):    
+    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag=False, accuracy=None, epochs=10):    
 
         history = {'loss':[], 'accuracy':[], 'val_accuracy':[]}
         for epoch in range(0, epochs):

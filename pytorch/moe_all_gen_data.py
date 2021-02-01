@@ -26,7 +26,7 @@ def accuracy(out, yb):
     preds = torch.argmax(out, dim=1)
     return (preds == yb).float().mean()
 
-def run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True, loss_importance=False):
+def run_experiment(dataset, single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True, loss_importance=False):
     # experiment with models with different number of shallow experts and softmax
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
@@ -54,7 +54,7 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
             else:
                 optimizer = optim.RMSprop(model.parameters(), lr=0.001)
                 
-                hist = model.train(trainloader, testloader, optimizer, val['loss'], loss_importance, accuracy, epochs=epochs)
+            hist = model.train(trainloader, testloader, optimizer, val['loss'], loss_importance, accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
@@ -220,8 +220,8 @@ def main():
     
     # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    total_experts = 10
-    epochs = 20
+    total_experts = 10 
+    epochs = 40 
 
     for size in [3000]:#, 5000, 8000]:
         dataset =  'expert_1_gate_1_single_shallow_checker_board_rotated_'+str(size)

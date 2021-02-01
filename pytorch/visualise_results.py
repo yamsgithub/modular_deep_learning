@@ -72,7 +72,7 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             
             pred = moe_model(generated_data.to(device))
             pred_color,pred_labels = labels(pred)
-            pred_labels_order = np.unique(pred_labels)
+            pred_labels_order = np.unique(pred_labels.cpu())
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
                             hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)),palette=colors[0:num_classes], ax=ax[index])
@@ -86,9 +86,9 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             for i in range(0, e):
                 pred = experts[i](generated_data.to(device))
                 pred_color,pred_labels = labels(pred)
-                pred_labels_order = np.unique(pred_labels)
+                pred_labels_order = np.unique(pred_labels.cpu())
                 sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                                hue=pred_labels.cpu(),, hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
+                                hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
                 sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
                 
                 ax[((i+1)*3)+index].set_title('Expert '+str(i+1)+' Model')
@@ -99,7 +99,7 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             palette = sns.color_palette("Paired")+sns.color_palette('Set2')
             pred_gate = moe_model.gate(generated_data.to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
-            pred_gate_labels_order = np.unique(pred_labels)
+            pred_gate_labels_order = np.unique(pred_gate_labels.cpu())
             sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
                             hue=pred_gate_labels.cpu(), hue_order=pred_gate_labels_order, palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])

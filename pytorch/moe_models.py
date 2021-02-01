@@ -28,8 +28,8 @@ def cross_entropy_loss(p, targets, reduction='mean'):
 def entropy(p):
     logp = torch.log2(p)
     with torch.no_grad():
-        logp = np.nan_to_num(logp, neginf=0)
-        entropy_val = (-1*torch.sum(p*logp,dim=1)).mean()
+        logp = np.nan_to_num(logp.cpu().numpy(), neginf=0)
+        entropy_val = (-1*torch.sum(p.to(torch.device('cpu'))*logp,dim=1)).mean()
     return entropy_val
 
 def loss_importance(p):
@@ -70,7 +70,7 @@ class moe_expectation_model(nn.Module):
 
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
@@ -91,7 +91,7 @@ class moe_expectation_model(nn.Module):
                 gate_outputs = self.gate(inputs)
 
                 loss = loss_criterion(outputs, labels)
-                if loss_importance:
+                if loss_importance_flag:
                      loss += loss_importance(gate_outputs)
 
                 loss.backward()
@@ -172,7 +172,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
         
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
@@ -193,7 +193,7 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 gate_outputs = self.gate(inputs)
 
                 loss = loss_criterion(outputs, labels)
-                if loss_importance:
+                if loss_importance_flag:
                      loss += loss_importance(gate_outputs)
                     
 
@@ -302,7 +302,7 @@ class moe_stochastic_model(nn.Module):
 
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
@@ -330,7 +330,7 @@ class moe_stochastic_model(nn.Module):
                 running_entropy += entropy(p)
 
                 loss = loss = loss_criterion(x.to(device, non_blocking=True), p.to(device, non_blocking=True) , labels)
-                if loss_importance:
+                if loss_importance_flag:
                      loss += loss_importance(p)
                     
                 loss.backward()
