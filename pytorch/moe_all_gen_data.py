@@ -20,14 +20,14 @@ from visualise_results import *
 
 # ### Mixture of experts model
 
+
 # compute
 def accuracy(out, yb):
     preds = torch.argmax(out, dim=1)
     return (preds == yb).float().mean()
 
-def run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10):
-
-    # experiment with models with different number of experts
+def run_experiment(dataset, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True, loss_importance=False):
+    # experiment with models with different number of shallow experts and softmax
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
               'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
@@ -49,20 +49,23 @@ def run_experiment(dataset, trainset, trainloader, testset, testloader, num_clas
                 model = val['model'](moe_model_params, num_experts, num_classes)
 
             model_params = sum([p.numel() for p in model.parameters()])
-            optimizer = optim.RMSprop(model.parameters(),
-                                      lr=0.001, momentum=0.9)
-            hist = model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            if momentum:
+                optimizer = optim.RMSprop(model.parameters(), lr=0.001, momentum=0.9)
+            else:
+                optimizer = optim.RMSprop(model.parameters(), lr=0.001)
+                
+                hist = model.train(trainloader, testloader, optimizer, val['loss'], loss_importance, accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
 
-def run_experiment_1(dataset,  single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True):
+def run_experiment_1(dataset,  single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True, loss_importance=False):
     
-    # experiment with models with different number of experts
+    # experiment with models with different number of deep experts and softmax
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
-              'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
-              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
-              'single_model': {'model':single_model, 'loss':nn.CrossEntropyLoss(), 'experts':{}}
+              'moe_expectation_model':{'model':moe_expectation_model,'loss':cross_entropy_loss,'experts':{}}, 
+              'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':cross_entropy_loss,'experts':{}},
+              'single_model': {'model':single_model, 'loss':cross_entropy_loss, 'experts':{}}
     }
     for key, val in models.items():
                                            
@@ -89,14 +92,14 @@ def run_experiment_1(dataset,  single_model, trainset, trainloader, testset, tes
             else:
                 optimizer = optim.RMSprop(model.parameters(),
                                           lr=0.001)
-            hist = model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            hist = model.train(trainloader, testloader, optimizer, val['loss'], loss_importance, accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
 
-def run_experiment_2(dataset,  single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True):
+def run_experiment_2(dataset,  single_model, trainset, trainloader, testset, testloader, num_classes, total_experts = 3, epochs = 10, momentum=True, loss_importance=False):
     
-    # experiment with models with different number of experts
+    # experiment with models with different number of deep experts and escort instead of softmax
     models = {'moe_stochastic_model':{'model':moe_stochastic_model, 'loss':moe_stochastic_loss,'experts':{}}, 
               'moe_expectation_model':{'model':moe_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}}, 
               'moe_pre_softmax_expectation_model':{'model':moe_pre_softmax_expectation_model,'loss':nn.CrossEntropyLoss(),'experts':{}},
@@ -128,7 +131,7 @@ def run_experiment_2(dataset,  single_model, trainset, trainloader, testset, tes
                 optimizer = optim.RMSprop(model.parameters(),
                                           lr=0.001)
 
-            hist = model.train(trainloader, testloader, optimizer, val['loss'], accuracy, epochs=epochs)
+            hist = model.train(trainloader, testloader, optimizer, val['loss'], loss_importance, accuracy, epochs=epochs)
             val['experts'][num_experts] = {'model':model, 'history':hist, 'parameters':model_params}
 
     return  models
@@ -217,36 +220,37 @@ def main():
     
     # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    # for size in [3000, 5000, 8000]:
-    #     dataset =  'expert_1_gate_1_single_shallow_checker_board_'+str(size)+'-2'
-    #     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
-        
-    #     total_experts = 2
-    #     epochs = 2
-        
-    #     runs = []
-    #     for r in range(0, num_runs):
-    #         models = run_experiment_1(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs)
-    #         runs.append(models)
-    
-    #     results = runs[0]
-    #     if num_runs > 1:
-    #         results = aggregate_results(runs, total_experts)
-            
-    #     pickle.dump(results,open('../results/'+dataset+'_results.pkl','wb'))
-        
-    #     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
-        
-    #     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
-        
-    #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    total_experts = 10
+    epochs = 20
 
-    #for size in [3000]:#, 5000, 8000]:
-    #     dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
-    #     X, y, trainset, trainloader, testset, testloader, num_classes = generate_data(dataset, size)
+    for size in [3000]:#, 5000, 8000]:
+        dataset =  'expert_1_gate_1_single_shallow_checker_board_rotated_'+str(size)
+        X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size, 128, 6)
         
-    #     total_experts = 2
-    #     epochs = 2
+        runs = []
+        for r in range(0, num_runs):
+            models = run_experiment(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, loss_importance=True)
+            runs.append(models)
+    
+        results = runs[0]
+        if num_runs > 1:
+            results = aggregate_results(runs, total_experts)
+            
+        torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
+        
+        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+
+        generated_data = data_generator.create_meshgrid(X)
+        plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        
+        plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+
+    # total_experts = 5
+    # epochs = 40
+
+    # for size in [3000]:#, 5000, 8000]:
+    #     dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
+    #     X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
         
     #     runs = []
     #     for r in range(0, num_runs):
@@ -260,17 +264,18 @@ def main():
     #     torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
 
     #     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
-        
-    #     plot_results(X, y, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+
+    #     generated_data = data_generator.create_meshgrid(X)
+    #     plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
     #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    for size in [3000]:#, 5000, 8000]:
-        dataset =  'expert_1_gate_1_escort_single_deep_checker_board_rotated_'+str(size)
-        X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
+    # for size in [3000]:#, 5000, 8000]:
+    #     dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
+    #     X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
         
-        total_experts = 10
-        epochs = 40
+    #     total_experts = 10
+    #     epochs = 40
         
         # runs = []
         # for r in range(0, num_runs):
@@ -291,23 +296,23 @@ def main():
         # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
         #dataset =  'expert_1_gate_1_no_momentum_escort_single_deep_checker_board_rotated_'+str(size)
-        runs = []
-        for r in range(0, num_runs):
-            models = run_experiment_2(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, False)
-            runs.append(models)
+        # runs = []
+        # for r in range(0, num_runs):
+        #     models = run_experiment_2(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, False)
+        #     runs.append(models)
     
-        results = runs[0]
-        if num_runs > 1:
-            results = aggregate_results(runs, total_experts)
+        # results = runs[0]
+        # if num_runs > 1:
+        #     results = aggregate_results(runs, total_experts)
 
-        torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
+        # torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
 
-        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+        # log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
-        generated_data = data_generator.create_meshgrid(X)
-        plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        # generated_data = data_generator.create_meshgrid(X)
+        # plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-        plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+        # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
         
     fp.close()
