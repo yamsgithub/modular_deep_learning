@@ -12,9 +12,9 @@ class expert_layers_shallow(nn.Module):
     def __init__(self, output):
         super(expert_layers_shallow, self).__init__()
         self.model = nn.Sequential(
-                    nn.Linear(2, 4),
+                    nn.Linear(2, 2),
                     nn.ReLU(),
-                    nn.Linear(4,output),
+                    nn.Linear(2,output),
                     nn.Softmax(dim=1)
                 )        
         
@@ -25,9 +25,9 @@ class expert_layers_shallow_presoftmax(nn.Module):
     def __init__(self, output):
         super(expert_layers_shallow_presoftmax, self).__init__()
         self.model = nn.Sequential(
-                    nn.Linear(2, 4),
+                    nn.Linear(2, 2),
                     nn.ReLU(),
-                    nn.Linear(4,output)
+                    nn.Linear(2,output)
                 )        
         
     def forward(self, input):
@@ -96,6 +96,7 @@ class expert_layers_deep_escort(nn.Module):
         return self.model(input)
     
 # create a set of experts
+
 def experts(expert_layers_type, num_experts, num_classes):
     models = []
     for i in range(num_experts):
