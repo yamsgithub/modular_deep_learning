@@ -10,11 +10,10 @@ import math
 
 import torch
 
-
+import datagen
 from visualise_results import plot_data
 
-def generate_data(dataset, size, batchsize=128):
-    num_classes = 2
+def generate_data(dataset, size, batchsize=128, num_classes=2):
     X = y = None
     if 'checker_board_rotated' in dataset:
         X, y, num_classes = checker_board_rotated(dataset, size)
@@ -25,13 +24,13 @@ def generate_data(dataset, size, batchsize=128):
     elif 'non_linear' in dataset:
         X, y, num_classes = non_linear(dataset, size)
     elif 'multi_class' in dataset:
-        X, y, num_classes = multi_class(dataset, size)                    
+        X, y, num_classes = multi_class(dataset, size, num_classes)                    
     elif 'data1' in dataset:
         X, y, num_classes = data1(dataset, size)        
     elif 'data5' in dataset:
         X, y, num_classes = data5(dataset, size)
 
-    plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'_.png')
+    plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'.png')
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
@@ -54,8 +53,7 @@ def generate_data(dataset, size, batchsize=128):
 
     return X, y, trainset, trainloader, testset, testloader, num_classes
 
-def checker_board_rotated(dataset, size):
-    num_classes = 2
+def checker_board_rotated(dataset, size, num_classes=2):
     x_a = [-1.0,-1.0,0.0,0.0]
     x_b = [0.0,0.0,1.0,1.0]
     y_a = [-1.0,0.0,-1.0,0.0]
@@ -106,8 +104,7 @@ def checker_board_rotated(dataset, size):
 
     return X, y, num_classes
 
-def checker_board(dataset, size):
-    num_classes = 2
+def checker_board(dataset, size, num_classes=2):
     clf = int(dataset.split('-')[-1])
     
     X = 2 * np.random.random((size,2)) - 1
@@ -123,8 +120,7 @@ def checker_board(dataset, size):
 
     return X, y, num_classes
 
-def concentric_circles(dataset, size):
-    num_classes = 2
+def concentric_circles(dataset, size, num_classes=2):
     np.random.seed(0)
     
     n_samples = size
@@ -144,9 +140,8 @@ def concentric_circles(dataset, size):
 
     return X, y, num_classes
 
-def non_linear(dataset, size):
+def non_linear(dataset, size, num_classes=2):
     # Generate non-linear dataset
-    num_classes = 2
     split = int(size/3)
     transl = - 3
     X = np.random.normal(size=(size, 2))
@@ -157,20 +152,24 @@ def non_linear(dataset, size):
 
     return X, y, num_classes
 
-def multi_class(dataset, size):
-    num_classes = 3
-    from sklearn.datasets import make_classification
-    # Easy decision boundary
-    X,y = make_classification(n_samples=size, n_features=2, n_informative=2, 
-                              n_redundant=0, n_repeated=0, n_classes=num_classes, 
-                              n_clusters_per_class=1,class_sep=2,flip_y=0,
-                              random_state=17)
+# def multi_class(dataset, size, num_classes=3):
+#     from sklearn.datasets import make_classification
+#     # Easy decision boundary
+#     X,y = make_classification(n_samples=size, n_features=2, n_informative=2, 
+#                               n_redundant=0, n_repeated=0, n_classes=num_classes, 
+#                               n_clusters_per_class=1,class_sep=2,flip_y=0,
+#                               random_state=17)
 
-    return X, y, num_classes
-    
+#     return X, y, num_classes
 
-def data1(dataset, size):
-    num_classes = 2
+#from matplotlib import pyplot as plt
+def multi_class(dataset, size, num_classes=3):
+    #prop_cycle = plt.rcParams['axes.prop_cycle']
+    #colors = prop_cycle.by_key()['color']
+    omc=datagen.gm_kmc(nump=int(size/num_classes),clu=num_classes,noise=0,labeler=lambda l:l)#,col=lambda k:colors[k])
+    return omc.get_instances(), omc.get_labels(), num_classes
+
+def data1(dataset, size, num_classes=2):
     plt.figure(figsize=(10,5))
     im = plt.imread('figures/data/'+dataset+'.png')
     
