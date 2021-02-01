@@ -56,7 +56,6 @@ class single_model_shallow(nn.Module):
             i = 0
             for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = data
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 
                 # zero the parameter gradients
