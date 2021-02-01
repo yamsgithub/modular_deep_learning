@@ -220,30 +220,30 @@ def main():
     
     # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    total_experts = 10 
-    epochs = 40 
+    # total_experts = 10 
+    # epochs = 40 
 
-    for size in [3000]:#, 5000, 8000]:
-        dataset =  'expert_1_gate_1_single_shallow_checker_board_rotated_'+str(size)
-        X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size, 128, 6)
+    # for size in [3000]:#, 5000, 8000]:
+    #     dataset =  'expert_1_gate_1_single_shallow_checker_board_rotated_'+str(size)
+    #     X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size, 128, 6)
         
-        runs = []
-        for r in range(0, num_runs):
-            models = run_experiment(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, loss_importance=True)
-            runs.append(models)
+    #     runs = []
+    #     for r in range(0, num_runs):
+    #         models = run_experiment(dataset, single_model_shallow, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, loss_importance=True)
+    #         runs.append(models)
     
-        results = runs[0]
-        if num_runs > 1:
-            results = aggregate_results(runs, total_experts)
+    #     results = runs[0]
+    #     if num_runs > 1:
+    #         results = aggregate_results(runs, total_experts)
             
-        torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
+    #     torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
         
-        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+    #     log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
-        generated_data = data_generator.create_meshgrid(X)
-        plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+    #     generated_data = data_generator.create_meshgrid(X)
+    #     plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-        plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+    #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
     # total_experts = 5
     # epochs = 40
@@ -270,51 +270,31 @@ def main():
         
     #     plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-    # for size in [3000]:#, 5000, 8000]:
-    #     dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
-    #     X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
+    for size in [3000]:#, 5000, 8000]:
+        dataset =  'expert_1_gate_1_single_deep_checker_board_rotated_'+str(size)
+        X, y, trainset, trainloader, testset, testloader, num_classes = data_generator.generate_data(dataset, size)
         
-    #     total_experts = 10
-    #     epochs = 40
+        total_experts = 10
+        epochs = 40
         
-        # runs = []
-        # for r in range(0, num_runs):
-        #     models = run_experiment_1(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, False)
-        #     runs.append(models)
+        runs = []
+        for r in range(0, num_runs):
+            models = run_experiment_1(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, True, True)
+            runs.append(models)
     
-        # results = runs[0]
-        # if num_runs > 1:
-        #     results = aggregate_results(runs, total_experts)
+        results = runs[0]
+        if num_runs > 1:
+            results = aggregate_results(runs, total_experts)
 
-        # torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
+        torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
 
-        # log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
+        log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
 
-        # generated_data = data_generator.create_meshgrid(X)
-        # plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
+        generated_data = data_generator.create_meshgrid(X)
+        plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
         
-        # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
+        plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
 
-        #dataset =  'expert_1_gate_1_no_momentum_escort_single_deep_checker_board_rotated_'+str(size)
-        # runs = []
-        # for r in range(0, num_runs):
-        #     models = run_experiment_2(dataset, single_model_deep, trainset, trainloader, testset, testloader, num_classes, total_experts, epochs, False)
-        #     runs.append(models)
-    
-        # results = runs[0]
-        # if num_runs > 1:
-        #     results = aggregate_results(runs, total_experts)
-
-        # torch.save(results,open('../results/'+dataset+'_results.pt','wb'))
-
-        # log_results(results, total_experts, num_classes, num_runs, epochs, dataset, fp)
-
-        # generated_data = data_generator.create_meshgrid(X)
-        # plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, runs[0], dataset, total_experts)
-        
-        # plot_error_rate(results, total_experts, 'figures/all/accuracy_'+dataset+'_'+ str(num_classes)+'_experts.png')
-
-        
     fp.close()
 
 
