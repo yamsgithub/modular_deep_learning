@@ -149,3 +149,107 @@ class gate_layers_deep_escort(nn.Module):
     def forward(self, input):
         return self.model(input)
 
+
+#Expert network
+class expert_layers(nn.Module):
+    def __init__(self, output):
+        super(expert_layers, self).__init__()
+        # define layers
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
+        
+        self.fc1 = nn.Linear(in_features=6*12*12, out_features=60)
+        self.fc2 = nn.Linear(in_features=60, out_features=120)
+
+        self.out = nn.Linear(in_features=120, out_features=output)
+
+
+    def forward(self, t):
+        # conv 1
+        t = self.conv1(t)
+        t = F.relu(t)
+        t = F.max_pool2d(t, kernel_size=2, stride=2)
+
+        # fc1
+        t = t.reshape(-1, 6*12*12)
+        t = self.fc1(t)
+        t = F.relu(t)
+
+        # fc2
+        t = self.fc2(t)
+        t = F.relu(t)
+
+        # output
+        t = F.softmax(self.out(t), dim=1)
+        
+        return t
+#Expert network
+class expert_layers_presoftmax(nn.Module):
+    def __init__(self, output):
+        super(expert_layers_presoftmax, self).__init__()
+        # define layers
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
+        
+        self.fc1 = nn.Linear(in_features=6*12*12, out_features=60)
+        self.fc2 = nn.Linear(in_features=60, out_features=120)
+
+        self.out = nn.Linear(in_features=120, out_features=output)
+
+
+    def forward(self, t):
+        # conv 1
+        t = self.conv1(t)
+        t = F.relu(t)
+        t = F.max_pool2d(t, kernel_size=2, stride=2)
+
+        # fc1
+        t = t.reshape(-1, 6*12*12)
+        t = self.fc1(t)
+        t = F.relu(t)
+
+        # fc2
+        t = self.fc2(t)
+        t = F.relu(t)
+
+        # output
+        t = self.out(t)
+        
+        return t
+
+#Expert network
+class gate_layers(nn.Module):
+    def __init__(self, num_experts):
+        super(gate_layers, self).__init__()
+        # define layers
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size=5)
+        self.conv2 = nn.Conv2d(in_channels=6, out_channels=12, kernel_size=5)
+
+        self.fc1 = nn.Linear(in_features=12*4*4, out_features=120)
+        self.fc2 = nn.Linear(in_features=120, out_features=60)
+        self.out = nn.Linear(in_features=60, out_features=num_experts)
+        self.num_experts = num_experts
+        self.count = 0
+
+    def forward(self, t):
+        # conv 1
+        t = self.conv1(t)
+        t = F.relu(t)
+        t = F.max_pool2d(t, kernel_size=2, stride=2)
+
+        # conv 2
+        t = self.conv2(t)
+        t = F.relu(t)
+        t = F.max_pool2d(t, kernel_size=2, stride=2)
+
+        # fc1
+        t = t.reshape(-1, 12*4*4)
+        t = self.fc1(t)
+        t = F.relu(t)
+
+        # fc2
+        t = self.fc2(t)
+        t = F.relu(t)
+
+        # output
+        t = self.out(t)
+        t = F.softmax(t, dim=1)
+        return t
