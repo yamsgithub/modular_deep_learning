@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-# The moe architecture that outputs an expected output of the experts
-# based on the gate probabilities
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -13,8 +11,6 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
-w_importance = 0.1
-    
 def cross_entropy_loss(p, targets, reduction='mean'):
     eps=1e-7
     logp = torch.log(p+eps)
@@ -32,13 +28,15 @@ def entropy(p):
         entropy_val = (-1*torch.sum(p.to(torch.device('cpu'))*logp,dim=1)).mean()
     return entropy_val
 
-def loss_importance(p):
+def loss_importance(p, w_importance):
     loss_importance = 0.0
     if p.shape[1] > 1:
         importance = torch.sum(p,dim=0)
         loss_importance = w_importance * torch.square(torch.std(importance)/torch.mean(importance))
     return loss_importance
 
+# The moe architecture that outputs an expected output of the experts
+# based on the gate probabilities
 class moe_expectation_model(nn.Module):
     
     def __init__(self, num_experts, experts, gate):
@@ -70,14 +68,15 @@ class moe_expectation_model(nn.Module):
 
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, w_importance = 1.0, accuracy=None, epochs=10):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
+        running_loss_importance = 0.0
         train_running_accuracy = 0.0 
         test_running_accuracy = 0.0
         running_entropy = 0.0
-        history = {'loss':[], 'accuracy':[], 'val_accuracy':[], 'entropy':[]}
+        history = {'loss':[], 'loss_importance':[],'accuracy':[], 'val_accuracy':[], 'entropy':[]}        
         for epoch in range(epochs):  # loop over the dataset multiple times
             i = 0
             for inputs, labels in trainloader:
@@ -91,15 +90,18 @@ class moe_expectation_model(nn.Module):
                 gate_outputs = self.gate(inputs)
 
                 loss = loss_criterion(outputs, labels)
-                if loss_importance_flag:
-                     loss += loss_importance(gate_outputs)
-
+                l_imp = 0.0
+                if w_importance > 0.0:
+                    l_imp = loss_importance(gate_outputs, w_importance)
+                    loss += l_imp
+                    
                 loss.backward()
 
                 optimizer.step()
 
                 running_loss += loss.item()
-
+                running_loss_importance += l_imp
+                
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
                 #computing entropy
@@ -119,10 +121,12 @@ class moe_expectation_model(nn.Module):
                 test_running_accuracy = (acc.cpu().numpy()/j)
 
             running_loss = running_loss / i
+            running_loss_importance = running_loss_importance / i
             train_running_accuracy = train_running_accuracy.cpu().numpy() / i
             with torch.no_grad():
                 running_entropy = running_entropy.cpu().numpy() / i
             history['loss'].append(running_loss)
+            history['loss_importance'].append(running_loss_importance)            
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
             history['entropy'].append(running_entropy)
@@ -172,14 +176,15 @@ class moe_pre_softmax_expectation_model(nn.Module):
         
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, w_importance=1.0, accuracy=None, epochs=10):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
+        running_loss_importance = 0.0
         train_running_accuracy = 0.0
         test_running_accuracy = 0.0
         running_entropy = 0.0
-        history = {'loss':[], 'accuracy':[], 'val_accuracy':[], 'entropy':[]}        
+        history = {'loss':[], 'loss_importance':[],'accuracy':[], 'val_accuracy':[], 'entropy':[]}        
         for epoch in range(epochs):  # loop over the dataset multiple times
             i = 0
             for inputs, labels in trainloader:
@@ -193,15 +198,17 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 gate_outputs = self.gate(inputs)
 
                 loss = loss_criterion(outputs, labels)
-                if loss_importance_flag:
-                     loss += loss_importance(gate_outputs)
+                l_imp = 0.0
+                if w_importance > 0.0:
+                    l_imp = loss_importance(gate_outputs, w_importance)
+                    loss += l_imp
                     
-
                 loss.backward()
 
                 optimizer.step()
 
                 running_loss += loss.item()
+                running_loss_importance += l_imp
               
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
@@ -225,11 +232,13 @@ class moe_pre_softmax_expectation_model(nn.Module):
                 test_running_accuracy = (acc.cpu().numpy()/j)
 
             running_loss = running_loss / i
+            running_loss_importance = running_loss_importance / i
             train_running_accuracy = train_running_accuracy.cpu().numpy() / i
             with torch.no_grad():
                 running_entropy = running_entropy.cpu().numpy() / i
 
             history['loss'].append(running_loss)
+            history['loss_importance'].append(running_loss_importance)
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
             history['entropy'].append(running_entropy)
@@ -302,14 +311,15 @@ class moe_stochastic_model(nn.Module):
 
         return output
     
-    def train(self, trainloader, testloader, optimizer, loss_criterion, loss_importance_flag, accuracy, epochs):
+    def train(self, trainloader, testloader, optimizer, loss_criterion, w_importance, accuracy=None, epochs=10):
         expert_models = self.experts
         gate_model = self.gate
         running_loss = 0.0
+        running_loss_importance = 0.0
         train_running_accuracy = 0.0
         test_running_accuracy = 0.0
         running_entropy = 0.0
-        history = {'loss':[], 'accuracy':[], 'val_accuracy':[], 'entropy':[]}                
+        history = {'loss':[], 'loss_importance':[],'accuracy':[], 'val_accuracy':[], 'entropy':[]}        
         for epoch in range(epochs):  # loop over the dataset multiple times
             i = 0
             for inputs, labels in trainloader:
@@ -330,15 +340,18 @@ class moe_stochastic_model(nn.Module):
                 running_entropy += entropy(p)
 
                 loss = loss = loss_criterion(x.to(device, non_blocking=True), p.to(device, non_blocking=True) , labels)
-                if loss_importance_flag:
-                     loss += loss_importance(p)
+                l_imp = 0.0
+                if w_importance > 0.0:
+                    l_imp = loss_importance(p, w_importance)
+                    loss += l_imp
                     
                 loss.backward()
 
                 optimizer.step()
 
                 running_loss += loss.item()
-
+                running_loss_importance += l_imp
+                
                 try:
                     outputs = self(inputs)
                 except:
@@ -362,12 +375,14 @@ class moe_stochastic_model(nn.Module):
                 test_running_accuracy = (acc.cpu().numpy()/j)
 
             running_loss = running_loss / i
+            running_loss_importance = running_loss_importance / i
             train_running_accuracy = train_running_accuracy.cpu().numpy() / i
 
             with torch.no_grad():
                 running_entropy = running_entropy.cpu().numpy() / i
             
             history['loss'].append(running_loss)
+            history['loss_importance'].append(running_loss_importance)            
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
             history['entropy'].append(running_entropy)
