@@ -167,6 +167,7 @@ class gm_kmc(user_data_c):
     Xclus=[]
     Yclus=[]
     clu=len(self.lm)
+    print('lm', self.lm)
     for i in range(clu):
         Xclu=self.rs.multivariate_normal(self.rawX[self.lm[i],:],self.sigmas[i]*numpy.eye(2),nump if type(nump)==int else nump[i])
         Xclus.append(Xclu)
