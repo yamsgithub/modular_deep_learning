@@ -34,10 +34,6 @@ def generate_data(dataset, size, batchsize=128, num_classes=2):
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-    print(len(y_train))
-    print(sum(y_train))
-    print(len(y_test))
-    print(sum(y_test))
 
     # Create trainloader
 
@@ -166,7 +162,7 @@ def non_linear(dataset, size, num_classes=2):
 def multi_class(dataset, size, num_classes=3):
     #prop_cycle = plt.rcParams['axes.prop_cycle']
     #colors = prop_cycle.by_key()['color']
-    omc=datagen.gm_kmc(nump=int(size/num_classes),clu=num_classes,noise=0,labeler=lambda l:l)#,col=lambda k:colors[k])
+    omc=datagen.gm_kmc(nump=int(size/num_classes),clu=num_classes,noise=0,seed=4058803790, labeler=lambda l:l)#,col=lambda k:colors[k])
     return omc.get_instances(), omc.get_labels(), num_classes
 
 def data1(dataset, size, num_classes=2):
