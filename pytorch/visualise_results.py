@@ -13,7 +13,7 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
-colors = ['y', 'tab:purple', 'tab:green', 'tab:orange','tab:blue', 'tab:red']
+colors = ['y', 'tab:purple', 'tab:green', 'tab:orange','tab:blue', 'tab:red','tab:cyan', 'tab:olive']
 
 # ### Visualise decision boundaries of mixture of expert model, expert model and gate model
 def plot_data(X, y, num_classes, save_as):
