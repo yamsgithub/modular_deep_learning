@@ -263,9 +263,6 @@ class moe_stochastic_model(nn.Module):
                         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
                         expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] + torch.sum(acc)
 
-                    exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
-                    expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index]  + exp_sample_acc
-
                 #computing entropy
                 running_entropy += moe_models.entropy(self.gate_outputs)
                 
@@ -273,7 +270,7 @@ class moe_stochastic_model(nn.Module):
                 if self.task == 'classification':
                     selected_experts = torch.zeros(len(labels))
                     if self.num_experts > 1:
-                        selected_experts = self.samples().flatten()
+                        selected_experts = self.samples.flatten()
                     y = labels.cpu().numpy()
                     e = selected_experts.cpu().numpy()
                     for j in range(y.shape[0]):

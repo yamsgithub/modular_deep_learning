@@ -259,8 +259,8 @@ class moe_expectation_model(nn.Module):
                     selected_experts = torch.zeros(len(labels))
                     if self.num_experts > 1:
                         selected_experts = torch.argmax(self.gate_outputs, dim=1)
-                    y = labels.numpy()
-                    e = selected_experts.numpy()
+                    y = labels.cpu().numpy()
+                    e = selected_experts.cpu().numpy()
                     for j in range(y.shape[0]):
                         ey[int(y[j]), int(e[j])] += 1
 
