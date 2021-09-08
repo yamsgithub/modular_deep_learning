@@ -59,6 +59,7 @@ class moe_expectation_model(nn.Module):
             y.append(expert(inputs))
         y = torch.stack(y)
         y.transpose_(0,1)
+        y = y.to(device)
         
         self.expert_outputs = y
 

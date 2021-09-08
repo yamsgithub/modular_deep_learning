@@ -59,7 +59,7 @@ class moe_stochastic_loss:
 
 def moe_stochastic_loss_1(expert_outputs, gate_output, target):
     expert_loss = []
-    criterion = nn.CrossEntropyLoss(reduction='none')
+    criterion = nn.CrossEntropyLoss(reduction='none').to(device)
     for i in range(expert_outputs.shape[0]):
         cross_entropy_loss = criterion(expert_outputs[i], target)
         expert_loss.append(cross_entropy_loss)
@@ -96,6 +96,7 @@ class moe_stochastic_model(nn.Module):
                 y.append(expert(inputs))
             y = torch.stack(y)
             y.transpose_(0,1)
+            y = y.to(device)
 
             self.expert_outputs = y
             
@@ -110,10 +111,10 @@ class moe_stochastic_model(nn.Module):
                 self.gate_outputs = p
                 
                 m  = Categorical(p)
-                self.samples = m.sample().reshape(len(p), 1)
+                self.samples = m.sample().reshape(len(p), 1).to(device)
             except:
                 raise
-            output = torch.cat([y[i][self.samples[i]] for i in range(batch_size)])
+            output = torch.cat([y[i][self.samples[i]] for i in range(batch_size)]).to(device)
             #output = y[torch.tensor(range(0,batch_size)).reshape(batch_size,1), self.samples, :].squeeze()
         else:
             output = self.expert_outputs[:,0,:]
