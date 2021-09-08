@@ -179,14 +179,14 @@ class moe_stochastic_model(nn.Module):
             for i in range(0, self.num_experts):
                 num_params = 0
                 for param in self.experts[i].parameters():
-                    per_exp_avg_wts[i] += param.mean()
+                    per_exp_avg_wts[i] =  per_exp_avg_wts[i] + param.mean()
                     num_params += 1
                 per_exp_avg_wts[i] = per_exp_avg_wts[i]/num_params
 
             gate_avg_wts = 0.0
             num_params = 0
             for param in self.gate.parameters():
-                gate_avg_wts += param.mean()
+                gate_avg_wts = gate_avg_wts + param.mean()
                 num_params += 1
             gate_avg_wts = gate_avg_wts/num_params
 
@@ -241,63 +241,28 @@ class moe_stochastic_model(nn.Module):
                 for index in range(0, self.num_experts):
                     acc = accuracy(self.expert_outputs[:,index,:], labels, False)
                     exp_sample_acc =  torch.sum(gate_outputs[:, index].flatten()*acc)
-                    expert_train_running_accuracy[index] += torch.sum(acc)
-                    expert_sample_train_running_accuracy[index] += exp_sample_acc
+                    expert_train_running_accuracy[index] = expert_train_running_accuracy[index] + torch.sum(acc)
+                    expert_sample_train_running_accuracy[index] = expert_sample_train_running_accuracy[index] + exp_sample_acc
 
                     e_loss = loss_criterion.loss_criterion(expert_outputs[:,index,:], labels)
                     if len(e_loss.shape) > 1:
                         e_loss = torch.mean(e_loss, dim=1)
                     e_sample_loss = torch.sum(torch.matmul(gate_outputs[:, index].flatten(), e_loss))
-                    expert_train_running_loss[index] += torch.sum(e_loss)
-                    expert_sample_train_running_loss[index] += e_sample_loss
+                    expert_train_running_loss[index] = expert_train_running_loss[index] + torch.sum(e_loss)
+                    expert_sample_train_running_loss[index] = expert_sample_train_running_loss[index] + e_sample_loss
                     
                     for label in range(0, self.num_classes):
                         index_l = torch.where(labels==label)[0]
-                        per_exp_class_samples[index][label] += (torch.mean(gate_outputs[index_l, index]))*len(index_l)
+                        per_exp_class_samples[index][label] = per_exp_class_samples[index][label] + (torch.mean(gate_outputs[index_l, index]))*len(index_l)
                         
                     if T > 1.0:
                         exp_sample_acc =  torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*acc)
-                        expert_sample_train_running_accuracy_T[index] += exp_sample_acc
+                        expert_sample_train_running_accuracy_T[index] = expert_sample_train_running_accuracy_T[index + exp_sample_acc
                         
                         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
-                        expert_sample_train_running_loss_T[index] += e_sample_loss
-
-
-                #computing entropy
-                running_entropy += moe_models.entropy(self.gate_outputs)
-
-                # update the Y vs E table to compute joint distribution of Y and E
-                if self.task == 'classification':
-                    selected_experts = torch.zeros(len(labels))
-                    if self.num_experts > 1:
-                        selected_experts = torch.argmax(self.gate_outputs, dim=1)
-
-                    y = labels.numpy()
-                    e = selected_experts.numpy()
-                    for j in range(labels.shape[0]):
-                        ey[int(y[j]), int(e[j])] += 1
-                        
-                    mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey)
-
-                num_batches+=1
-                
-            with torch.no_grad():
-                acc = 0.0
-                j = 0
-                test_gate_probabilities = []
-                for test_inputs, test_labels in testloader:
-               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)
-                    test_outputs = self(test_inputs)
-                    test_gate_outputs = self.gate_outputs
-                    test_expert_outputs = self.expert_outputs
-                    test_gate_probabilities.append(test_gate_outputs)
-                    test_running_accuracy += accuracy(test_outputs, test_labels)
-
-                    for index in range(0, self.num_experts):
-                        acc = accuracy(test_expert_outputs[:,index,:], test_labels, False)
-                        expert_val_running_accuracy[index] += torch.sum(acc)
+                        expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] + torch.sum(acc)
                         exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
-                        expert_sample_val_running_accuracy[index] += exp_sample_acc
+                        expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index]  + exp_sample_acc
 
                     j+=1
                     
@@ -364,12 +329,12 @@ class moe_stochastic_model(nn.Module):
                 history['per_exp_avg_wts'].append(per_exp_avg_wts.cpu().numpy())
                 history['gate_avg_wts'].append(gate_avg_wts.cpu().numpy())
                 history['expert_accuracy'].append((expert_train_running_accuracy/len(trainloader.dataset)).cpu().numpy())
-                history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0)*len(trainloader.dataset))).cpu().numpy())
+                history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
                 history['expert_val_accuracy'].append((expert_val_running_accuracy/len(testloader.dataset)).cpu().numpy())
-                history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0))).cpu().numpy())
+                history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0).cpu())).cpu().numpy())
                 history['expert_loss'].append((expert_train_running_loss/len(trainloader.dataset)).cpu().numpy())
                 history['expert_sample_loss'].append((torch.div(expert_sample_train_running_loss,
-                                                                torch.mean(gate_probabilities, dim=0)*len(trainloader.dataset))).cpu().numpy())
+                                                                torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
 
                 history['per_exp_class_samples'].append(per_exp_class_samples.cpu().numpy()/num_batches)
                 history['exp_samples'].append((torch.mean(gate_probabilities, dim = 0)*len(trainloader.dataset)).cpu().numpy())
@@ -378,7 +343,7 @@ class moe_stochastic_model(nn.Module):
                 history['var_gate_log_probability'].append(torch.var(torch.log(gate_probabilities), dim = 0).cpu().numpy())
                 history['mean_gate_probability'].append(torch.mean(gate_probabilities, dim = 0).cpu().numpy())
                 history['var_gate_probability'].append(torch.var(gate_probabilities, dim = 0).cpu().numpy())
-                history['kl_div_gate'].append(moe_models.kl_divergence(gate_probabilities, torch.mean(gate_probabilities, dim = 0).repeat(len(gate_probabilities),1)).item())
+                history['kl_div_gate'].append(moe_models.kl_divergence(gate_probabilities.cpu(), torch.mean(gate_probabilities, dim = 0).cpu().repeat(len(gate_probabilities),1)).item())
                 history['cv'].append(moe_models.cv(gate_probabilities))
                 
             if T> 1.0:
