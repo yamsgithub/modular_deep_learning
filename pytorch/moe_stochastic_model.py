@@ -262,10 +262,48 @@ class moe_stochastic_model(nn.Module):
                         
                         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
                         expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] + torch.sum(acc)
-                        exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
-                        expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index]  + exp_sample_acc
 
-                    j+=1
+                    exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
+                    expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index]  + exp_sample_acc
+
+                #computing entropy
+                running_entropy += moe_models.entropy(self.gate_outputs)
+                
+                # update the Y vs E table to compute joint distribution of Y and E
+                if self.task == 'classification':
+                    selected_experts = torch.zeros(len(labels))
+                    if self.num_experts > 1:
+                        selected_experts = self.samples().flatten()
+                    y = labels.cpu().numpy()
+                    e = selected_experts.cpu().numpy()
+                    for j in range(y.shape[0]):
+                        ey[int(y[j]), int(e[j])] += 1
+
+                    mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey)
+
+                num_batches+=1
+
+            
+            with torch.no_grad():
+                acc = 0.0
+                j = 0
+                test_gate_probabilities = []
+                for test_inputs, test_labels in testloader:
+               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+                    test_outputs = self(test_inputs)
+                    test_gate_outputs = self.gate_outputs
+                    test_expert_outputs = self.expert_outputs
+                    test_gate_probabilities.append(test_gate_outputs)
+                    test_running_accuracy += accuracy(test_outputs, test_labels)
+
+                    for index in range(0, self.num_experts):
+                        acc = accuracy(test_expert_outputs[:,index,:], test_labels, False)
+                        expert_val_running_accuracy[index] = expert_val_running_accuracy[index] + torch.sum(acc)
+                        exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
+                        expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index] + exp_sample_acc
+
+                    j += 1
+                #print(confusion_matrix(testloader.dataset[:][1], torch.argmax(test_outputs_all, dim=1)))
                     
                 test_running_accuracy = (test_running_accuracy.cpu().numpy()/j)
 
