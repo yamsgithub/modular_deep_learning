@@ -258,10 +258,10 @@ class moe_stochastic_model(nn.Module):
                         
                     if T > 1.0:
                         exp_sample_acc =  torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*acc)
-                        expert_sample_train_running_accuracy_T[index] = expert_sample_train_running_accuracy_T[index + exp_sample_acc
+                        expert_sample_train_running_accuracy_T[index] = expert_sample_train_running_accuracy_T[index] + exp_sample_acc
                         
                         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
-                        expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] + torch.sum(acc)
+                        expert_sample_train_running_loss_T[index] = expert_sample_train_running_loss_T[index] + torch.sum(acc)
                         exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
                         expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index]  + exp_sample_acc
 
