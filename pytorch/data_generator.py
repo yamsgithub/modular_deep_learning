@@ -13,27 +13,27 @@ import torch
 import datagen
 from visualise_results import plot_data
 
-def generate_data(dataset, size, batchsize=128, num_classes=2):
+def generate_data(dataset, d_size, batchsize=128, num_classes=2):
     X = y = None
     if 'checker_board_rotated' in dataset:
-        X, y, num_classes = checker_board_rotated(dataset, size)
+        X, y, num_classes = checker_board_rotated(dataset, d_size)
     elif 'checker_board' in dataset:
-        X, y, num_classes = checker_board(dataset, size)
+        X, y, num_classes = checker_board(dataset, d_size)
     elif 'con_circles' in dataset:
-        X, y, num_classes = concentric_circles(dataset, size)
+        X, y, num_classes = concentric_circles(dataset, d_size)
     elif 'non_linear' in dataset:
-        X, y, num_classes = non_linear(dataset, size)
+        X, y, num_classes = non_linear(dataset, d_size)
     elif 'multi_class' in dataset:
-        X, y, num_classes = multi_class(dataset, size, num_classes)                    
+        X, y, num_classes = multi_class(dataset, d_size, num_classes)                    
     elif 'data1' in dataset:
-        X, y, num_classes = data1(dataset, size)        
+        X, y, num_classes = data1(dataset, d_size)        
     elif 'data5' in dataset:
-        X, y, num_classes = data5(dataset, size)
+        X, y, num_classes = data5(dataset, d_size)
 
     plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'.png')
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-
+    print(len(y_train), len(y_test))
 
     # Create trainloader
 
@@ -160,9 +160,10 @@ def non_linear(dataset, size, num_classes=2):
 
 #from matplotlib import pyplot as plt
 def multi_class(dataset, size, num_classes=3):
+    print('NUM CLASSES', num_classes)
     #prop_cycle = plt.rcParams['axes.prop_cycle']
     #colors = prop_cycle.by_key()['color']
-    omc=datagen.gm_kmc(nump=int(size/num_classes),clu=num_classes,noise=0,seed=4058803790, labeler=lambda l:l)#,col=lambda k:colors[k])
+    omc=datagen.gm_kmc(ininum=1000, nn=0.06, nump=int(size/num_classes),clu=num_classes,noise=0,seed=4058803790, labeler=lambda l:l)#,col=lambda k:colors[k])
     return omc.get_instances(), omc.get_labels(), num_classes
 
 def data1(dataset, size, num_classes=2):

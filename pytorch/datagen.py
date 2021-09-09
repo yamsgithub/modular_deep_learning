@@ -166,10 +166,10 @@ class gm_kmc(user_data_c):
   def get_points(self,nump=100):
     Xclus=[]
     Yclus=[]
+    I = numpy.eye(2)
     clu=len(self.lm)
-    print('lm', self.lm)
     for i in range(clu):
-        Xclu=self.rs.multivariate_normal(self.rawX[self.lm[i],:],self.sigmas[i]*numpy.eye(2),nump if type(nump)==int else nump[i])
+        Xclu=self.rs.multivariate_normal(self.rawX[self.lm[i],:],self.sigmas[i]*I,nump if type(nump)==int else nump[i])
         Xclus.append(Xclu)
         if DEBUGPLOTS: self.ax.scatter(Xclu[:,0],Xclu[:,1],alpha=.3)
         Yclus.extend([i]*(nump if type(nump)==int else nump[i]))
