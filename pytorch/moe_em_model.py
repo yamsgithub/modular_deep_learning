@@ -37,6 +37,7 @@ class moe_em_model(nn.Module):
             y.append(expert(inputs))
         y = torch.stack(y)
         y.transpose_(0,1)
+        y = y.to(device)
         
         self.expert_outputs = y
 
@@ -133,15 +134,16 @@ class moe_em_model(nn.Module):
 
             for x, y in new_batch:
                 x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
-                gate_output = self.gate(x).cpu()
+                gate_output = self.gate(x)
                 expected_values = []
                 for i, expert in enumerate(self.experts):
-                    expert_output = expert(x).cpu()
+                    expert_output = expert(x)
                     if self.task=='classification':
-                        expected_values.append(expert_output[range(I_len), y]*gate_output[:,i])
+                        expected_value = expert_output[range(I_len), y]*gate_output[:,i]
+                        expected_values.append(expected_value.cpu())
                     else:
-                        loss_criterion = loss_c(reduction='none')
-                        expected_values.append(torch.mean(loss_criterion(expert_output, y), dim=1)*gate_output[:,i])
+                        loss_criterion = loss_c(reduction='none').to(device)
+                        expected_values.append((torch.mean(loss_criterion(expert_output, y), dim=1).to(device)*gate_output[:,i]).cpu())
                 expected_values = torch.stack(expected_values, dim=1)
 
             if self.task=='classification':
