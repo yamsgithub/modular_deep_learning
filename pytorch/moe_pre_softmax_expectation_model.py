@@ -58,7 +58,8 @@ class moe_pre_softmax_expectation_model(nn.Module):
             y.append(expert(inputs))
         y = torch.stack(y)
         y.transpose_(0,1)
-
+        y = y.to(device)
+       
         self.expert_outputs = y
         
         if self.augment:
@@ -192,9 +193,9 @@ class moe_pre_softmax_expectation_model(nn.Module):
                     # p = p.repeat(1,1,y.shape[2])
                     
                     # outputs = F.softmax(torch.sum(p*y, 1)/T, dim=1)
-                    
+                  
                     loss = loss_criterion(outputs, labels)
-                    
+                   
                     l_imp = 0.0
                     if w_importance > 0.0:
                         l_imp = moe_models.loss_importance(gate_outputs, w_importance)
@@ -257,8 +258,8 @@ class moe_pre_softmax_expectation_model(nn.Module):
                     if self.num_experts > 1:
                         selected_experts = torch.argmax(self.gate_outputs, dim=1)
 
-                    y = labels.numpy()
-                    e = selected_experts.numpy()
+                    y = labels.cpu().numpy()
+                    e = selected_experts.cpu().numpy()
                     for j in range(labels.shape[0]):
                         ey[int(y[j]), int(e[j])] += 1
 
