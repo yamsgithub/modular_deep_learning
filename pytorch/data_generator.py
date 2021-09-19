@@ -33,7 +33,6 @@ def generate_data(dataset, d_size, batchsize=128, num_classes=2):
     plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'.png')
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    print(len(y_train), len(y_test))
 
     # Create trainloader
 
