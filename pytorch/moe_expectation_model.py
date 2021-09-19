@@ -359,8 +359,10 @@ class moe_expectation_model(nn.Module):
                 history['expert_val_accuracy'].append((expert_val_running_accuracy/len(testloader.dataset)).cpu().numpy())
                 history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0).cpu())).cpu().numpy())
                 history['expert_loss'].append((expert_train_running_loss/len(trainloader.dataset)).cpu().numpy())
+                #history['expert_sample_loss'].append((torch.div(expert_sample_train_running_loss,
+                #                                                torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
                 history['expert_sample_loss'].append((torch.div(expert_sample_train_running_loss,
-                                                                torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
+                                                                torch.sum(gate_probabilities, dim=0).cpu())).cpu().numpy())
 
                 history['per_exp_class_samples'].append(per_exp_class_samples.cpu().numpy()/num_batches)
                 history['exp_samples'].append((torch.mean(gate_probabilities, dim = 0)*len(trainloader.dataset)).cpu().numpy())
