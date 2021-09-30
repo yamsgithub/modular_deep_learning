@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import confusion_matrix
 
-import moe_models
+from helper import moe_models
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")

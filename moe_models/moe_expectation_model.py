@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import confusion_matrix
 
-import moe_models
+from helper import moe_models
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -204,14 +204,16 @@ class moe_expectation_model(nn.Module):
 
                     if w_ortho > 0.0:
                         l_ortho =  None
-                        for i in range(0, self.expert_outputs.shape[1]-1):
-                            for j in range(i+1, self.expert_outputs.shape[1]):
-                                if l_ortho is None:
-                                    l_ortho = torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
-                                                           torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1)))
-                                else:
-                                    l_ortho = torch.add(l_ortho, torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
-                                                                                        torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1))))
+                        l_ortho = moe_models.loss_importance(torch.sum(expert_outputs, dim=1), w_importance)
+                        
+                        # for i in range(0, self.expert_outputs.shape[1]-1):
+                        #     for j in range(i+1, self.expert_outputs.shape[1]):
+                        #         if l_ortho is None:
+                        #             l_ortho = torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
+                        #                                    torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1)))
+                        #         else:
+                        #             l_ortho = torch.add(l_ortho, torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
+                        #                                                                 torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1))))
                         if not l_ortho is None:
                             loss += w_ortho * l_ortho.mean()
 
