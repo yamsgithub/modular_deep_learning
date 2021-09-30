@@ -10,8 +10,8 @@ import math
 
 import torch
 
-import datagen
-from visualise_results import plot_data
+from helper import datagen
+from helper.visualise_results import plot_data
 
 def generate_data(dataset, d_size, batchsize=128, num_classes=2):
     X = y = None
@@ -30,7 +30,7 @@ def generate_data(dataset, d_size, batchsize=128, num_classes=2):
     elif 'data5' in dataset:
         X, y, num_classes = data5(dataset, d_size)
 
-    plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'.png')
+    #plot_data(X, y, num_classes, 'figures/all/'+dataset+'_'+str(num_classes)+'.png')
 
     x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
