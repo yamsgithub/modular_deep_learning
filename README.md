@@ -1,7 +1,11 @@
 Modular Deep Learning
 =======================================================================================================
 
-Code for reproducing results in the paper
+Code for realizing 4 different MoE architectures.
+1. Expectation Model
+2. Stochastic Model
+3. Pre-softmax Model
+4. EM Model
 
 REQUIREMENTS
 ------------
