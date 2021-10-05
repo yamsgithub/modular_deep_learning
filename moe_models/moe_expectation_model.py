@@ -112,7 +112,6 @@ class moe_expectation_model(nn.Module):
                    'w_importance':w_importance, 'w_ortho':w_ortho, 'w_ideal_gate':w_ideal_gate,
                    'cv':[], 'cv_T':[]}
         
-        gate_probabilities_all_epochs = []
         for epoch in range(epochs):  # loop over the dataset multiple times
             num_batches = 0
             running_loss = 0.0
@@ -149,13 +148,19 @@ class moe_expectation_model(nn.Module):
             gate_avg_wts = gate_avg_wts/num_params
 
             all_labels = []
+
+            gate_probabilities = []
             
+            num_batches = 0
             for inputs, labels in testloader:
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
+                all_labels.append(labels)
+                
                 outputs = self(inputs)
                 gate_outputs = self.gate_outputs
+                gate_probabilities.append(gate_outputs)
                 expert_outputs = self.expert_outputs
 
                 # zero the parameter gradients
@@ -176,11 +181,16 @@ class moe_expectation_model(nn.Module):
                 #computing entropy
                 running_entropy += moe_models.entropy(gate_outputs)
 
+                num_batches += 1
 
+            running_loss = running_loss/num_batches
             with torch.no_grad():
-                train_running_accuracy = train_running_accuracy.cpu().numpy()
-                running_entropy = running_entropy.cpu().numpy() 
-            
+                train_running_accuracy = train_running_accuracy.cpu().numpy()/num_batches
+                running_entropy = running_entropy.cpu().numpy()/num_batches
+                
+            gate_probabilities = torch.stack(gate_probabilities)
+            new_shape = gate_probabilities.shape
+            gate_probabilities = gate_probabilities.reshape(new_shape[0]*new_shape[1], new_shape[2])
 
             history['loss'].append(running_loss)
             history['accuracy'].append(train_running_accuracy)
@@ -191,12 +201,12 @@ class moe_expectation_model(nn.Module):
             with torch.no_grad():
                 history['per_exp_avg_wts'].append(per_exp_avg_wts.cpu().numpy())
                 history['gate_avg_wts'].append(gate_avg_wts.cpu().numpy())
-                history['mean_gate_log_probability'].append(torch.mean(torch.log(gate_outputs), dim = 0).cpu().numpy())
-                history['var_gate_log_probability'].append(torch.var(torch.log(gate_outputs), dim = 0).cpu().numpy())
-                history['mean_gate_probability'].append(torch.mean(gate_outputs, dim = 0).cpu().numpy())
-                history['var_gate_probability'].append(torch.var(gate_outputs, dim = 0).cpu().numpy())
-                history['kl_div_gate'].append(moe_models.kl_divergence(gate_outputs.cpu(), torch.mean(gate_outputs, dim = 0).cpu().repeat(len(gate_outputs),1)).item())
-                history['cv'].append(moe_models.cv(gate_outputs))
+                history['mean_gate_log_probability'].append(torch.mean(torch.log(gate_probabilities), dim = 0).cpu().numpy())
+                history['var_gate_log_probability'].append(torch.var(torch.log(gate_probabilities), dim = 0).cpu().numpy())
+                history['mean_gate_probability'].append(torch.mean(gate_probabilities, dim = 0).cpu().numpy())
+                history['var_gate_probability'].append(torch.var(gate_probabilities, dim = 0).cpu().numpy())
+                history['kl_div_gate'].append(moe_models.kl_divergence(gate_probabilities.cpu(), torch.mean(gate_probabilities, dim = 0).cpu().repeat(len(gate_probabilities),1)).item())
+                history['cv'].append(moe_models.cv(gate_probabilities))
 
             print('epoch %d' % epoch,
                   'training loss %.2f' % running_loss,
