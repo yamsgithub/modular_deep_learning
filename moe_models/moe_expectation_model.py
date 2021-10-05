@@ -203,8 +203,7 @@ class moe_expectation_model(nn.Module):
                         running_loss_importance += l_imp
 
                     if w_ortho > 0.0:
-                        l_ortho =  None
-                        l_ortho = moe_models.loss_importance(torch.sum(expert_outputs, dim=1), w_importance)
+                        l_ortho = moe_models.loss_importance(torch.sum(expert_outputs, dim=1), w_ortho)
                         
                         # for i in range(0, self.expert_outputs.shape[1]-1):
                         #     for j in range(i+1, self.expert_outputs.shape[1]):
@@ -214,8 +213,9 @@ class moe_expectation_model(nn.Module):
                         #         else:
                         #             l_ortho = torch.add(l_ortho, torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
                         #                                                                 torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1))))
-                        if not l_ortho is None:
-                            loss += w_ortho * l_ortho.mean()
+                        #if not l_ortho is None:
+                        #    loss += w_ortho * l_ortho.mean()
+                        loss += l_ortho
 
                     loss.backward()
 
@@ -292,7 +292,7 @@ class moe_expectation_model(nn.Module):
                     j += 1
                 #print(confusion_matrix(testloader.dataset[:][1], torch.argmax(test_outputs_all, dim=1)))
                     
-                test_running_accuracy = test_running_accuracy/j
+                test_running_accuracy = test_running_accuracy.cpu().numpy()/j
 
             running_loss = running_loss / num_batches
             running_loss_importance = running_loss_importance / num_batches
