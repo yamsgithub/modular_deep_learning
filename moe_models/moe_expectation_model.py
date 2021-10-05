@@ -89,7 +89,7 @@ class moe_expectation_model(nn.Module):
         return output
 
     def train_on_validation(self, trainloader, testloader,
-              loss_c, optimizer_moe, optimizer_gate=None, optimizer_experts=None, 
+              loss_c, optimizer_moe=None, optimizer_gate=None, optimizer_experts=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
               T=1.0, T_decay=0, T_decay_start=0,
               accuracy=None, epochs=10):
