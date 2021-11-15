@@ -71,6 +71,11 @@ def lighten_color(colors, amount=0.5):
         l_colors.append(l_color)
     return l_colors
 
+def export_legend(legend, filename="legend.png"):
+    fig  = legend.figure
+    fig.canvas.draw()
+    bbox  = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig(filename, dpi="figure", bbox_inches=bbox)
 
 def visualize(models, total_experts, num_classes, generated_data, 
               X_orig_data, y_orig_data, filename):
@@ -124,10 +129,10 @@ def visualize(models, total_experts, num_classes, generated_data,
                             hue=pred_orig_data_labels, palette=pred_orig_data_color, legend=visible, s=40,ax=ax[0])
             indices = np.where((pred_orig_data_labels == y_orig_data.cpu() )== False)[0]
             sns.scatterplot(x=X_orig_data[indices,0].cpu(),y=X_orig_data[indices,1].cpu(),
-                            hue=['mis-classified']*len(indices), palette=['r'], marker='X', legend=visible, s=40, ax=ax[0])
+                            hue=['mis-classified']*len(indices), palette=['r'], marker='X', legend=False, s=40, ax=ax[0])
             # Put a legend below current axis
-            ax[0].legend(loc='upper left', bbox_to_anchor=(0.0, -0.1), fancybox=True, shadow=True,
-                         ncol=len(u_gate_labels)+num_classes+1, fontsize=legendsize, markerscale=2.)
+            legend = ax[0].legend(loc='upper left', bbox_to_anchor=(0.0, -0.1), ncol=len(u_gate_labels)+num_classes+1, fontsize=legendsize, markerscale=2.)
+            legend.set_visible(False)
             ax[0].set_title('Mixture of Experts', fontsize=fontsize)
             ax[0].set_ylabel('Dim 2', fontsize=fontsize1)
             ax[0].set_xlabel('Dim 1', fontsize=fontsize1)
@@ -167,4 +172,10 @@ def visualize(models, total_experts, num_classes, generated_data,
     #         plt.figtext(0.2,0.00, captions, fontsize=20, va="top", ha="left")
             fig.savefig(filename +'_'+m_key+'_'+str(num_experts)+'_experts.png')
             plt.show()
+
+            legend.set_visible(True)
+            export_legend(legend, filename+'_legend_'+m_key+'_'+str(num_experts)+'_experts.png')
+            plt.show()
+            
+            
             
