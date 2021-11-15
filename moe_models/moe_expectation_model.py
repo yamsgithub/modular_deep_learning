@@ -152,7 +152,7 @@ class moe_expectation_model(nn.Module):
             gate_probabilities = []
             
             num_batches = 0
-            for inputs, labels in testloader:
+            for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
@@ -166,12 +166,12 @@ class moe_expectation_model(nn.Module):
                 # zero the parameter gradients
                 optimizer_gate.zero_grad()
                 loss = loss_criterion(outputs, labels)
+                running_loss += loss.item()
 
                 loss.backward()
                 
                 optimizer_gate.step()
                 
-                running_loss += loss.item()
 
                 outputs = self(inputs)
                 
@@ -187,6 +187,22 @@ class moe_expectation_model(nn.Module):
             with torch.no_grad():
                 train_running_accuracy = train_running_accuracy.cpu().numpy()/num_batches
                 running_entropy = running_entropy.cpu().numpy()/num_batches
+
+            with torch.no_grad():
+                acc = 0.0
+                j = 0
+                test_gate_probabilities = []
+                for test_inputs, test_labels in testloader:
+               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+                    test_outputs = self(test_inputs)
+                    test_gate_outputs = self.gate_outputs
+                    test_expert_outputs = self.expert_outputs
+                    test_gate_probabilities.append(test_gate_outputs)
+                    test_running_accuracy += accuracy(test_outputs, test_labels)
+                    
+                    j += 1
+                    
+                test_running_accuracy = test_running_accuracy.cpu().numpy()/j
                 
             gate_probabilities = torch.stack(gate_probabilities)
             new_shape = gate_probabilities.shape
@@ -210,7 +226,8 @@ class moe_expectation_model(nn.Module):
 
             print('epoch %d' % epoch,
                   'training loss %.2f' % running_loss,
-                  ', training accuracy %.2f' % train_running_accuracy)
+                  ', training accuracy %.2f' % train_running_accuracy,
+                  ', test accuracy %.2f' % test_running_accuracy)
             
         return history
     
