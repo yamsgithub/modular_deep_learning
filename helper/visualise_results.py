@@ -47,11 +47,12 @@ def predict(dataloader, model):
             
         return torch.stack(true_labels), torch.stack(pred_labels)
 
-def plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts):
+def plot_results(X, y, generated_data, num_classes, trainset, trainloader, testset, testloader, models, dataset, total_experts, filename):
 
-    for e in range(1, total_experts+1):
+    keys = models.keys()
+    ncols = len(keys) 
+    for e in range(total_experts, total_experts+1):
         nrows = (e*1)+3
-        ncols = 3
         thefigsize = (ncols*5,nrows*5)
         
         print('Number of Experts:', e)
@@ -59,7 +60,6 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
         fig,ax = plt.subplots(nrows, ncols, sharex=True, sharey=True, figsize=thefigsize)
         ax = ax.flatten()
     
-        keys = models.keys()
         print(keys)
 
         index = 0
@@ -73,7 +73,7 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
             pred = moe_model(generated_data.to(device))
             pred_color,pred_labels = labels(pred)
             pred_labels_order = np.unique(pred_labels.cpu())
-            sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
+            sns.scatterplot(x=generated_data[:,0].cpu(),y=generated_data[:,1].cpu(),
                             hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[index])
             sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)),palette=colors[0:num_classes], ax=ax[index])
             ax[index].set_title(' '.join(m_key.split('_')))
@@ -87,38 +87,39 @@ def plot_results(X, y, generated_data, num_classes, trainset, trainloader, tests
                 pred = experts[i](generated_data.to(device))
                 pred_color,pred_labels = labels(pred)
                 pred_labels_order = np.unique(pred_labels.cpu())
-                sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                                hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[((i+1)*3)+index])
-                sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes],  ax=ax[((i+1)*3)+index])
+                sns.scatterplot(x=generated_data[:,0].cpu(),y=generated_data[:,1].cpu(),
+                                hue=pred_labels.cpu(), hue_order=pred_labels_order, palette=pred_color, legend=False, ax=ax[((i+1)*ncols)+index])
+                sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes],  ax=ax[((i+1)*ncols)+index])
                 
-                ax[((i+1)*3)+index].set_title('Expert '+str(i+1)+' Model')
-                ax[((i+1)*3)+index].set_ylabel('Dim 2')
-                ax[((i+1)*3)+index].set_xlabel('Dim 1')
+                ax[((i+1)*ncols)+index].set_title('Expert '+str(i+1)+' Model')
+                ax[((i+1)*ncols)+index].set_ylabel('Dim 2')
+                ax[((i+1)*ncols)+index].set_xlabel('Dim 1')
 
             #palette = sns.husl_palette(total_experts)
             palette = sns.color_palette("Paired")+sns.color_palette('Set2')
             pred_gate = moe_model.gate(generated_data.to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             pred_gate_labels_order = np.unique(pred_gate_labels.cpu())
-            sns.scatterplot(x=generated_data[:,0],y=generated_data[:,1],
-                            hue=pred_gate_labels.cpu(), hue_order=pred_gate_labels_order, palette=pred_gate_color, legend=False, ax=ax[((e+1)*3)+index])
-            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes], ax=ax[((e+1)*3)+index])
-            ax[((e+1)*3)+index].set_title('Gate Model')
-            ax[((e+1)*3)+index].set_ylabel('Dim 2')
-            ax[((e+1)*3)+index].set_xlabel('Dim 1')
+            sns.scatterplot(x=generated_data[:,0].cpu(),y=generated_data[:,1].cpu(),
+                            hue=pred_gate_labels.cpu(), hue_order=pred_gate_labels_order, palette=pred_gate_color, legend=False, ax=ax[((e+1)*ncols)+index])
+            sns.scatterplot(x=X[:,0], y=X[:,1], hue=y, hue_order=list(range(0,num_classes)), palette=colors[0:num_classes], ax=ax[((e+1)*ncols)+index])
+            ax[((e+1)*ncols)+index].set_title('Gate Model')
+            ax[((e+1)*ncols)+index].set_ylabel('Dim 2')
+            ax[((e+1)*ncols)+index].set_xlabel('Dim 1')
         
         
             pred_gate = moe_model.gate(trainset[:][0].to(device))
             pred_gate_color, pred_gate_labels = labels(pred_gate, palette)
             
-            sns.scatterplot(x=trainset[:][0][:,0],y=trainset[:][0][:,1],
-                            hue=pred_gate_labels.cpu(),palette=pred_gate_color, ax=ax[((e+2)*3)+index])       
+            sns.scatterplot(x=trainset[:][0][:,0].cpu(),y=trainset[:][0][:,1].cpu(),
+                            hue=pred_gate_labels.cpu(),palette=pred_gate_color, ax=ax[((e+2)*ncols)+index])       
             
             
             index += 1
-        plt.savefig('figures/all/'+dataset+'_'+str(num_classes)+'_'+str(e)+'_experts.png')
-        plt.clf()
-        plt.close()
+        fig.savefig(filename +'_'+m_key+'_'+str(e)+'_experts.png')
+        #plt.clf()
+        #plt.close()
+        plt.show()
 
 def plot_error_rate(models, total_experts, save_as):
     labels = []
