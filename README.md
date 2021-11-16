@@ -40,18 +40,16 @@ In order to install the code locally please follow the steps below:
 RUNNING JUPYTER NOTEBOOK for WORKSHOP EXPERIMENTS
 ------------------------
 
-1. Go to the xai_neurips_2021/notebooks folder
+1. Run the following script to start jupyter: 
 
-   `cd xai_neurips_2021/notebooks`
+   `./bin/run_notebooks.sh`
 
-2. Run jupyter notebook (the mnn env is already loaded in the ipykernel) to access all the notebooks:
+2. In the jupyter lab go to the xai_neurips_2021/notebooks folder which contains all the relevant notebooks 
 
-   `jupyter lab`
+3. Start with the toy_classification.ipynb.
 
-2. Start with the toy_classification.ipynb.
+4. Select the mnn kernel.
 
-3. Select the mnn kernel.
-
-4. You should now be able to run the notebooks.
+5. You should now be able to run the notebooks.
 
 
