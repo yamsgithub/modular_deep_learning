@@ -1,5 +1,7 @@
-Modular Deep Learning
+Gated Modular Deep Learning
 =======================================================================================================
+This branch contains the code for the paper "Interpretability in Gated Modular Neural Networks" by Yamuna Krishnamurthy and Chris Watkins at XAI workshop at Neurips 2021
+------------------
 
 Code for realizing 4 different MoE architectures.
 1. Expectation Model
@@ -35,10 +37,12 @@ In order to install the code locally please follow the steps below:
    `source mnn/bin/activate` on **Linux/Mac**
 
 
-RUNNING JUPYTER NOTEBOOK
+RUNNING JUPYTER NOTEBOOK for WORKSHOP EXPERIMENTS
 ------------------------
 
-1. Go to the notebooks directory
+1. Go to the xai_neurips_2021/notebooks folder
+
+   `cd xai_neurips_2021/notebooks`
 
 2. Run jupyter notebook (the mnn env is already loaded in the ipykernel) to access all the notebooks:
 
@@ -49,4 +53,5 @@ RUNNING JUPYTER NOTEBOOK
 3. Select the mnn kernel.
 
 4. You should now be able to run the notebooks.
+
 
