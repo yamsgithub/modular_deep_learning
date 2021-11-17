@@ -1,6 +1,6 @@
 Gated Modular Deep Learning
 =======================================================================================================
-This branch contains the code for the paper "Interpretability in Gated Modular Neural Networks" by Yamuna Krishnamurthy and Chris Watkins at XAI workshop at Neurips 2021
+This branch contains the code for experiments in the paper "Interpretability in Gated Modular Neural Networks" by Yamuna Krishnamurthy and Chris Watkins at XAI workshop at Neurips 2021
 ------------------
 
 Code for realizing 4 different MoE architectures.
