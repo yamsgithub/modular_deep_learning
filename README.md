@@ -52,4 +52,9 @@ RUNNING JUPYTER NOTEBOOK for WORKSHOP EXPERIMENTS
 
 5. You should now be able to run the notebooks.
 
+Contact
+-------
+
+For any questions or issues email: yamuna dot krishnamurthy at rhul.ac.uk
+
 
