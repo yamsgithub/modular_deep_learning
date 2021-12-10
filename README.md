@@ -1,9 +1,8 @@
 Gated Modular Deep Learning
 =======================================================================================================
-This branch contains the code for the paper "Interpretability in Gated Modular Neural Networks" by Yamuna Krishnamurthy and Chris Watkins at XAI workshop at Neurips 2021
-------------------
 
-Code for realizing 4 different MoE architectures.
+This repository contains various experiments to understand and improve interpertability in gated modular neural networks. Currently I am using the various Mixture of Experts architecture models listed below for these experiments: 
+
 1. Expectation Model
 2. Stochastic Model
 3. Pre-softmax Model
@@ -40,17 +39,21 @@ In order to install the code locally please follow the steps below:
 RUNNING JUPYTER NOTEBOOK for WORKSHOP EXPERIMENTS
 ------------------------
 
-1. Go to the xai_neurips_2021/notebooks folder
+1. Run the following script to start jupyter: 
 
-   `cd xai_neurips_2021/notebooks`
+   `./bin/run_notebooks.sh`
 
-2. Run jupyter notebook (the mnn env is already loaded in the ipykernel) to access all the notebooks:
+2. In the jupyter lab go to the notebooks folder which contains all the relevant notebooks 
 
-   `jupyter lab`
+3. Start with the toy_classification.ipynb.
 
-2. Start with the toy_classification.ipynb.
+4. Select the mnn kernel.
 
-3. Select the mnn kernel.
+5. You should now be able to run the notebooks.
 
-4. You should now be able to run the notebooks.
+Contact
+-------
+
+For any questions or issues email: yamuna dot krishnamurthy at rhul.ac.uk
+
 
