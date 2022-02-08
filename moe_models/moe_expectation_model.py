@@ -56,8 +56,8 @@ class moe_expectation_model(nn.Module):
     def forward(self,inputs, T=1.0):
         y = []
         for i, expert in enumerate(self.experts):
-            y.append(expert(inputs))
-        y = torch.stack(y)
+            y.append(expert(inputs).view(1,-1,self.num_classes))
+        y = torch.vstack(y)
         y.transpose_(0,1)
         y = y.to(device)
         
@@ -147,7 +147,7 @@ class moe_expectation_model(nn.Module):
                 num_params += 1
             gate_avg_wts = gate_avg_wts/num_params
 
-            all_labels = []
+            all_labels = None 
 
             gate_probabilities = []
             
@@ -156,7 +156,10 @@ class moe_expectation_model(nn.Module):
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
 
-                all_labels.append(labels)
+                if all_labels is None:
+                   all_labels = labels
+                else:
+                   all_labels = torch.cat((all_labels,labels))
                 
                 outputs = self(inputs)
                 gate_outputs = self.gate_outputs
@@ -204,9 +207,7 @@ class moe_expectation_model(nn.Module):
                     
                 test_running_accuracy = test_running_accuracy.cpu().numpy()/j
                 
-            gate_probabilities = torch.stack(gate_probabilities)
-            new_shape = gate_probabilities.shape
-            gate_probabilities = gate_probabilities.reshape(new_shape[0]*new_shape[1], new_shape[2])
+            gate_probabilities = torch.vstack(gate_probabilities)
 
             history['loss'].append(running_loss)
             history['accuracy'].append(train_running_accuracy)
@@ -300,13 +301,16 @@ class moe_expectation_model(nn.Module):
                 num_params += 1
             gate_avg_wts = gate_avg_wts/num_params
 
-            all_labels = []
+            all_labels = None 
             
             for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-
-                all_labels.append(labels)
+                
+                if all_labels is None:
+                   all_labels = labels
+                else:
+                   all_labels = torch.cat((all_labels,labels))
 
                 outputs = self(inputs)
                 gate_outputs = self.gate_outputs
@@ -328,8 +332,7 @@ class moe_expectation_model(nn.Module):
                         l_experts = []
                         for i in range(self.num_experts):
                             l_experts.append(loss_c(reduction='none')(expert_outputs[:,i,:],labels))
-                        l_experts = torch.stack(l_experts)
-                        l_experts.transpose_(0,1)
+                        l_experts = torch.vstack(l_experts)
                         min_indices = torch.min(l_experts, dim=1)[1]
                         ideal_gate_output = torch.zeros((len(min_indices), self.num_experts))
                         for i, index in enumerate(min_indices):
@@ -443,32 +446,20 @@ class moe_expectation_model(nn.Module):
                 train_running_accuracy = train_running_accuracy.cpu().numpy() / num_batches
                 running_entropy = running_entropy.cpu().numpy() / num_batches
 
-            gate_probabilities = torch.stack(gate_probabilities)
-            new_shape = gate_probabilities.shape
-            gate_probabilities = gate_probabilities.reshape(new_shape[0]*new_shape[1], new_shape[2])
+            gate_probabilities = torch.vstack(gate_probabilities)
 
             gate_probabilities_all_epochs.append(gate_probabilities)
 
-            test_gate_probabilities = torch.stack(test_gate_probabilities)
-            new_shape = test_gate_probabilities.shape
-            test_gate_probabilities = test_gate_probabilities.reshape(new_shape[0]*new_shape[1], new_shape[2])
-
-            all_labels = torch.stack(all_labels).flatten()
+            test_gate_probabilities = torch.vstack(test_gate_probabilities)
             
             baseline_losses = []
             if self.task == 'classification':
                 #loss baseline with avg gate prob
                 l = all_labels
-                y = torch.stack(expert_outputs_epoch)
-                #print('expert outputs', y.shape)
-                y = y.reshape(y.shape[0]*y.shape[1], y.shape[2], y.shape[3])
-                #print('expert outputs', y.shape)
+                y = torch.vstack(expert_outputs_epoch)
                 p = torch.mean(gate_probabilities, dim=0)
-                #print('p', p.shape)
                 p = p.reshape(1, p.shape[0], 1)
-                #print('p', p.shape)
                 p = p.repeat(y.shape[0],1,y.shape[2])
-                #print('p', p.shape)
                 # expected sum of expert outputs
                 output = torch.sum(p*y, 1)
                 baseline_losses.append(loss_criterion(output, l))
@@ -520,9 +511,7 @@ class moe_expectation_model(nn.Module):
                 history['cv'].append(moe_models.cv(gate_probabilities))
                 
             if T> 1.0:
-                gate_probabilities_high_T = torch.stack(gate_probabilities_high_T)
-                new_shape = gate_probabilities_high_T.shape
-                gate_probabilities_high_T = gate_probabilities_high_T.reshape(new_shape[0]*new_shape[1], new_shape[2])
+                gate_probabilities_high_T = torch.vstack(gate_probabilities_high_T)
                 gate_probabilities_all_epochs_T.append(gate_probabilities_high_T)
                 
                 with torch.no_grad():
