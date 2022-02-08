@@ -29,7 +29,7 @@ virtual_env: $(VIRTUAL_ENV_TARGET)
 
 install_torch:
 	source mnn/bin/activate; \
-	pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html || pip install torch==1.6.0 torchvision==0.7.0;
+        pip install torch torchvision;
 
 # Actual Target work here
 
