@@ -13,6 +13,18 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
+
+# helper function to show an image
+def imshow(img, one_channel=False):
+    if one_channel:
+        img = img.mean(dim=0)
+    img = img / 2 + 0.5     # unnormalize
+    npimg = img.cpu().numpy()
+    if one_channel:
+        plt.imshow(npimg, cmap="Greys")
+    else:
+        plt.imshow(np.transpose(npimg, (1, 2, 0)))
+
 colors = ['y', 'tab:purple', 'tab:green', 'tab:orange','tab:blue', 'tab:red','tab:cyan', 'tab:olive']
 
 # ### Visualise decision boundaries of mixture of expert model, expert model and gate model
