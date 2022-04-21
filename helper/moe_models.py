@@ -48,7 +48,6 @@ def loss_importance(p, w_importance):
     return loss_importance
 
 def mutual_information(count_mat):
-    #print('\nEY', count_mat)
     (r,c) = count_mat.shape
     joint_EY = np.zeros((r,c))
     N = np.sum(count_mat)
@@ -57,6 +56,10 @@ def mutual_information(count_mat):
             joint_EY[i,j] = count_mat[i,j]/N
     marginal_Y = np.sum(joint_EY, axis=1)
     marginal_E = np.sum(joint_EY, axis=0)
+
+    #(r,c) = joint_EY.shape
+    #marginal_Y = np.sum(joint_EY, axis=1)
+    #marginal_E = np.sum(joint_EY, axis=0)
     
     log2_marginal_Y = np.ma.log2(marginal_Y).filled(fill_value=0.0)
     H_Y = 0.0
@@ -83,29 +86,80 @@ def mutual_information(count_mat):
 
 class attention(nn.Module):
 
-    def __init__(self, num_experts, num_classes):
+    def __init__(self, hidden):
         super(attention,self).__init__()
-        self.num_experts = num_experts
-        self.num_classes = num_classes
 
-        self.Wx = nn.Linear(2, num_experts, bias=False)
-        self.We = nn.Linear(num_classes, num_experts, bias=False)
-        self.weight = nn.Parameter(torch.FloatTensor(1, num_experts))
-
-    def forward(self, inputs, expert_outputs):
-        # Calculating Alignment Scores
-        batch_size = inputs.shape[0]
-        x = torch.tanh(self.Wx(inputs).unsqueeze(1).repeat(1,self.num_experts,1)+self.We(expert_outputs))
-        alignment_scores = self.weight.repeat(batch_size,1,1).bmm(x)
+        self.Wq = nn.Linear(hidden, hidden, bias=False)
+        self.Wk = nn.Linear(hidden, hidden, bias=False)
+        #self.Wv = nn.Linear(hidden, hidden, bias=False)
         
+        self.hidden_size = hidden
+
+    def forward(self, hidden_expert, hidden_gate):
+
+        #print('hidden_expert', hidden_expert.shape)
+        #print('hidden_gate', hidden_gate.shape)
+
+        # Calculating Alignment Scores
+        Q = self.Wq(hidden_gate)
+        Q = Q.view(-1,1,Q.shape[1])
+        K = self.Wk(hidden_expert)
+        #V = self.Wv(hidden_expert)
+
+        #print('Q', Q.shape)
+        #print('K',K.shape)
+        #print('V', V.shape)
+
+        alignment_scores = Q @ torch.transpose(K,2,1)/self.hidden_size**0.5
+        #print('alignment scores', alignment_scores.shape) 
+
         # Softmaxing alignment scores to get Attention weights
-        attn_weights = F.softmax(alignment_scores, dim=1)
+        attn_weights = F.softmax(alignment_scores.squeeze(), dim=1)
+        #print('attn weights', attn_weights.shape)
+        
+        return attn_weights
         
         # Multiplying the Attention weights with encoder outputs to get the context vector
-        context_vector = torch.bmm(attn_weights,
-                                  expert_outputs)
-        return context_vector
+        #context_vector = torch.bmm(attn_weights, V).squeeze()
+        #print('context_vector', context_vector.shape)
+
+        #return context_vector
     
+
+class attention_old(nn.Module):
+
+    def __init__(self, num_experts, num_classes):
+        super(attention,self).__init__()
+        self.num_classes = num_classes
+
+        self.Wq = nn.Linear(num_classes, num_classes, bias=False)
+        self.Wk = nn.Linear(num_classes, num_classes, bias=False)
+        self.Wv = nn.Parameter(torch.FloatTensor(num_classes, num_experts))
+
+    def forward(self, expert_outputs):
+
+        # Calculating Alignment Scores
+        Q = self.Wq(expert_outputs)
+        K = self.Wk(expert_outputs)
+
+        #print('Q', Q.shape)
+        #print('K',K.shape)
+        #print('experts', expert_outputs.shape)
+        #print('Wv',self.Wv.shape)
+
+        V = expert_outputs @ self.Wv
+        #print('V', V.shape)
+
+        alignment_scores = Q @ torch.transpose(K,2,1)/ self.num_classes**0.5
+        #print('alignment scores', alignment_scores)
+
+        # Softmaxing alignment scores to get Attention weights
+        attn_weights = F.softmax(alignment_scores, dim=1)
+
+        # Multiplying the Attention weights with encoder outputs to get the context vector
+        context_vector = torch.bmm(attn_weights, V)
+
+        return context_vector
 
 
 
