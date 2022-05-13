@@ -13,7 +13,7 @@ else:
     device = torch.device("cpu")
     print('device', device)
 
-def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs, T, w_importance, w_ortho, optimizer_gate, optimizer_experts, loss_criterion):
+def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs, T, optimizer_gate, optimizer_experts, loss_criterion, regularization=0.0):
     outputs_with_T = model(inputs, T)
     gate_outputs_T = model.gate_outputs
 
@@ -27,21 +27,10 @@ def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs,
      
     optimizer_gate.zero_grad()
     loss = loss_criterion(outputs, labels)
-    if w_importance > 0.0:
-        l_imp = moe_models.loss_importance(gate_outputs, w_importance)
-        loss += l_imp
     
-    if w_ortho > 0:
-       p = gate_outputs
-       y = expert_outputs
-       p = p.reshape(p.shape[0],p.shape[1], 1)
-       p = p.repeat(1,1,y.shape[2])
-       print('p*y', p*y)
-       print('sum(p*y)', torch.sum(p*y, dim=1))
-       print('SUM', torch.sum(torch.sum(p*y, dim=1),dim=0))
-       l_ortho = moe_models.loss_importance(torch.sum(p*y, dim=1), w_ortho)
-       loss += l_ortho
-    
+    if not regularization == 0.0:
+        loss += regularization
+
     loss.backward()
     
     for expert in model.experts:
@@ -106,16 +95,17 @@ class moe_expectation_model(nn.Module):
             p = self.gate(inputs, T)
         
         self.gate_outputs = p
-        
+       
+        output = y[torch.arange(len(p)), torch.argmax(p,dim=1)]
         # reshape gate output so probabilities correspond 
         # to each expert
-        p = p.reshape(p.shape[0],p.shape[1], 1)
+        #p = p.reshape(p.shape[0],p.shape[1], 1)
 
         # repeat probabilities number of classes times so
         # dimensions correspond
-        p = p.repeat(1,1,y.shape[2])
+        #p = p.repeat(1,1,y.shape[2])
         # expected sum of expert outputs
-        output = torch.sum(p*y, 1)
+        #output = torch.sum(p*y, 1)
 
         return output
 
@@ -211,73 +201,47 @@ class moe_expectation_model(nn.Module):
                 expert_outputs_epoch.append(expert_outputs)
                 gate_probabilities.append(gate_outputs)
 
-                
-                if not T[epoch] == 1.0:
-                    loss, gate_probabilities_batch_high_T = two_temp_optim(self, inputs, labels, outputs, gate_outputs, expert_outputs, 
-                                                                          T[epoch], w_importance, w_ortho, 
-                                                                          optimizer_gate, optimizer_experts, loss_criterion)
-                    gate_probabilities_high_T.append(gate_probabilities_batch_high_T)
-                    running_entropy_T += moe_models.entropy(gate_probabilities_batch_high_T)
-                    
+                regularization = 0.0
 
-                else:
-                    # zero the parameter gradients
-                    optimizer_moe.zero_grad()
-                    loss = loss_criterion(outputs, labels)
-                   
-                    if w_exp_gamma > 0.0: 
-                        loss += torch.sum(torch.exp(w_exp_gamma * torch.sum(gate_outputs, dim=0)))    
+                if w_exp_gamma > 0.0:
+                   regularization += torch.sum(torch.exp(w_exp_gamma * torch.sum(gate_outputs, dim=0)))
 
-                    if w_sample_sim > 0.0:
+                if w_sample_sim > 0.0:
 
-                        imgs = inputs.view(inputs.shape[0],-1)
-                        dist = torch.cdist(imgs, imgs)
-                        sample_dist = 0
-                        for i in range(self.num_experts):
-                            pex_dist = torch.zeros(inputs.shape[0], inputs.shape[0]).to(device)
-                            pe_i = gate_outputs[:,i].view(-1, 1)
-                            for j in range(self.num_experts):
-                                pe_j = gate_outputs[:,j].view(1, -1)
-                                pex_j = torch.mul(pe_i, pe_j)
-                                #print('pex_j',j,pex_j)
-                                pex_j_dist = torch.mul(pex_j,dist)
-                                if i == j:
-                                   pex_dist = pex_dist + pex_j_dist
-                                else:
-                                   pex_dist = pex_dist - pex_j_dist
+                   imgs = inputs.view(inputs.shape[0],-1)
+                   dist = F.normalize(torch.cdist(imgs, imgs))
+                   sample_dist = 0
+                   for i in range(self.num_experts):
+                       pex_dist = torch.zeros(inputs.shape[0], inputs.shape[0]).to(device)
+                       pe_i = gate_outputs[:,i].view(-1, 1)
+                       for j in range(self.num_experts):
+                           pe_j = gate_outputs[:,j].view(1, -1)
+                           pex_j = torch.mul(pe_i, pe_j)
+                           #print('pex_j',j,pex_j)
+                           pex_j_dist = torch.mul(pex_j,torch.exp(dist))
+                           if i == j:
+                              pex_dist = pex_dist + pex_j_dist
+                           #else:
+                           #   pex_dist = pex_dist - pex_j_dist
 
-                            sample_dist += torch.sum(F.normalize(pex_dist))
+                       #sample_dist += torch.sum(F.normalize(pex_dist))
+                       sample_dist += torch.sum(pex_dist)
 
-                        #print('sample_dist', sample_dist.item()) 
-                        loss += w_sample_sim * sample_dist                    
-  
-                    if w_ideal_gate > 0.0 and self.num_experts > 1:
-                        l_experts = []
-                        for i in range(self.num_experts):
-                            l_experts.append(loss_c(reduction='none')(expert_outputs[:,i,:],labels))
-                        l_experts = torch.vstack(l_experts)
-                        min_indices = torch.min(l_experts, dim=1)[1]
-                        ideal_gate_output = torch.zeros((len(min_indices), self.num_experts))
-                        for i, index in enumerate(min_indices):
-                            ideal_gate_output[i, index] = 1
-                        ideal_gate_loss_criterion = nn.MSELoss()
-                        ideal_gate_loss = ideal_gate_loss_criterion(gate_outputs, ideal_gate_output)
-                        loss += ideal_gate_loss
-                        
-                    
-                    l_imp = 0.0
-                    if w_importance > 0.0:
-                        l_imp = moe_models.loss_importance(gate_outputs, w_importance)
-                        loss += l_imp
-                        running_loss_importance += l_imp
+                       #print('sample_dist', sample_dist.item())
+                   regularization += w_sample_sim * sample_dist
 
-                    if w_ortho > 0.0:
-                        p = gate_outputs
-                        y = expert_outputs
-                        p = p.reshape(p.shape[0],p.shape[1], 1)
-                        p = p.repeat(1,1,self.num_classes)
-                        l_ortho = moe_models.loss_importance(torch.sum(p*y, dim=1), w_ortho)
-                        
+                if w_importance > 0.0:
+                   l_imp = moe_models.loss_importance(gate_outputs, w_importance)
+                   running_loss_importance += l_imp
+                   regularization += l_imp
+
+                if w_ortho > 0.0:
+                   p = gate_outputs
+                   y = expert_outputs
+                   p = p.reshape(p.shape[0],p.shape[1], 1)
+                   p = p.repeat(1,1,self.num_classes)
+                   regularization += moe_models.loss_importance(torch.sum(p*y, dim=1), w_ortho)
+
                         # for i in range(0, self.expert_outputs.shape[1]-1):
                         #     for j in range(i+1, self.expert_outputs.shape[1]):
                         #         if l_ortho is None:
@@ -288,11 +252,37 @@ class moe_expectation_model(nn.Module):
                         #                                                                 torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1))))
                         #if not l_ortho is None:
                         #    loss += w_ortho * l_ortho.mean()
-                        loss += l_ortho
 
-                    loss.backward()
+ 
+                if w_ideal_gate > 0.0 and self.num_experts > 1:
+                        l_experts = []
+                        for i in range(self.num_experts):
+                            l_experts.append(loss_c(reduction='none')(expert_outputs[:,i,:],labels))
+                        l_experts = torch.vstack(l_experts)
+                        min_indices = torch.min(l_experts, dim=1)[1]
+                        ideal_gate_output = torch.zeros((len(min_indices), self.num_experts))
+                        for i, index in enumerate(min_indices):
+                            ideal_gate_output[i, index] = 1
+                        ideal_gate_loss_criterion = nn.MSELoss()
+                        ideal_gate_loss = ideal_gate_loss_criterion(gate_outputs, ideal_gate_output)
+                        regularization += ideal_gate_loss
+ 
+                if not T[epoch] == 1.0:
+                   loss, gate_probabilities_batch_high_T = two_temp_optim(self, inputs, labels, outputs, gate_outputs, expert_outputs, T[epoch],
+                                                                          optimizer_gate, optimizer_experts, loss_criterion, regularization)
+                   gate_probabilities_high_T.append(gate_probabilities_batch_high_T)
+                   running_entropy_T += moe_models.entropy(gate_probabilities_batch_high_T)
+                    
+                else:
+                   # zero the parameter gradients
+                   optimizer_moe.zero_grad()
+                   loss = loss_criterion(outputs, labels)
+                   if not regularization == 0: 
+                        loss += regularization   
 
-                    optimizer_moe.step()
+                   loss.backward()
+
+                   optimizer_moe.step()
 
                 running_loss += loss.item()
 
