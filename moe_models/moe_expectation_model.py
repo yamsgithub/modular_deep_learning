@@ -72,6 +72,7 @@ class moe_expectation_model(nn.Module):
                 hidden_output = expert.hidden
                 h.append(hidden_output.view(1,-1,hidden_output.shape[1]))
 
+                
         y = torch.vstack(y)
         y.transpose_(0,1)
         y = y.to(device)
@@ -89,23 +90,24 @@ class moe_expectation_model(nn.Module):
             h_gate = self.gate(inputs)
             attention = self.attn(h, h_gate)
             p = attention 
-            #print('gate probs', p)
             #p = self.gate(inputs, T, attention)
         else:
             p = self.gate(inputs, T)
         
         self.gate_outputs = p
-       
-        output = y[torch.arange(len(p)), torch.argmax(p,dim=1)]
+               
+        #output = y[torch.arange(len(p)), torch.argmax(p,dim=1)]
+
         # reshape gate output so probabilities correspond 
         # to each expert
-        #p = p.reshape(p.shape[0],p.shape[1], 1)
+        p = p.reshape(p.shape[0],p.shape[1], 1)
 
         # repeat probabilities number of classes times so
         # dimensions correspond
-        #p = p.repeat(1,1,y.shape[2])
+        p = p.repeat(1,1,y.shape[2])
+
         # expected sum of expert outputs
-        #output = torch.sum(p*y, 1)
+        output = torch.sum(p*y, 1)
 
         return output
 
@@ -113,7 +115,8 @@ class moe_expectation_model(nn.Module):
     
     def train(self, trainloader, testloader,
               loss_c, optimizer_moe, optimizer_gate=None, optimizer_experts=None, 
-              w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,w_sample_sim =0.0, w_exp_gamma = 0.0,
+              w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
+              w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
               T=[1.0]*10, T_decay=0.0, T_decay_start=0,
               accuracy=None, epochs=10):
 
@@ -206,29 +209,29 @@ class moe_expectation_model(nn.Module):
                 if w_exp_gamma > 0.0:
                    regularization += torch.sum(torch.exp(w_exp_gamma * torch.sum(gate_outputs, dim=0)))
 
-                if w_sample_sim > 0.0:
+                if w_sample_sim_same > 0.0 or w_sample_sim_diff > 0.0:
 
-                   imgs = inputs.view(inputs.shape[0],-1)
-                   dist = F.normalize(torch.cdist(imgs, imgs))
+                   B = len(inputs) # batch size
+                   imgs = inputs.view(B,-1)
+                   #imgs_norm = F.normalize(imgs, dim=1)
+                   dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
                    sample_dist = 0
+                   pex_dist_same = torch.zeros(B, B).to(device)
+                   pex_dist_diff = torch.zeros(B, B).to(device)
+
                    for i in range(self.num_experts):
-                       pex_dist = torch.zeros(inputs.shape[0], inputs.shape[0]).to(device)
                        pe_i = gate_outputs[:,i].view(-1, 1)
                        for j in range(self.num_experts):
                            pe_j = gate_outputs[:,j].view(1, -1)
                            pex_j = torch.mul(pe_i, pe_j)
                            #print('pex_j',j,pex_j)
-                           pex_j_dist = torch.mul(pex_j,torch.exp(dist))
+                           pex_j_dist = torch.mul(pex_j, dist)
                            if i == j:
-                              pex_dist = pex_dist + pex_j_dist
-                           #else:
-                           #   pex_dist = pex_dist - pex_j_dist
+                              pex_dist_same = pex_dist_same + (pex_j_dist/self.num_experts)
+                           else:
+                              pex_dist_diff = pex_dist_diff + (pex_j_dist/(self.num_experts**2-self.num_experts))
 
-                       #sample_dist += torch.sum(F.normalize(pex_dist))
-                       sample_dist += torch.sum(pex_dist)
-
-                       #print('sample_dist', sample_dist.item())
-                   regularization += w_sample_sim * sample_dist
+                   regularization += ((w_sample_sim_same * torch.sum(pex_dist_same)) - (w_sample_sim_diff * torch.sum(pex_dist_diff))/(B**2))
 
                 if w_importance > 0.0:
                    l_imp = moe_models.loss_importance(gate_outputs, w_importance)
