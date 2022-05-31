@@ -17,11 +17,15 @@ def kl_divergence(p, q):
 class cross_entropy_loss(nn.Module):
     def __init__(self, reduction='mean'):
         super(cross_entropy_loss, self).__init__()
+        self.default_reduction = 'mean'
         self.criterion = nn.NLLLoss(reduction=reduction).to(device)
 
-    def forward(self, p, targets):
+    def reduction(self, r='mean'):
+        self.criterion.reduction = r
+        
+    def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, targets=None):
         eps=1e-7
-        logp = torch.log(p+eps).to(device)
+        logp = torch.log(outputs+eps).to(device)
         crossentropy_loss = self.criterion(logp, targets)
         return crossentropy_loss
 
