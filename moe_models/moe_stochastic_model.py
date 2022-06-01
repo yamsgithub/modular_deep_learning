@@ -38,17 +38,6 @@ class moe_stochastic_loss(nn.Module):
         total_loss = torch.mean(expected_loss)
         return total_loss.to(device)   
 
-def moe_stochastic_loss_1(expert_outputs, gate_output, target):
-    expert_loss = []
-    criterion = nn.CrossEntropyLoss(reduction='none').to(device)
-    for i in range(expert_outputs.shape[0]):
-        cross_entropy_loss = criterion(expert_outputs[i], target)
-        expert_loss.append(cross_entropy_loss)
-    expert_loss = torch.stack(expert_loss)
-    expert_loss.transpose_(0,1)
-    expected_loss = torch.sum(gate_output * expert_loss, 1)
-    loss = torch.mean(expected_loss)
-    return loss.to(device)   
 
 # The moe architecture that outputs a stochastic selection of an expert
 # based on the gate probabilities. 
