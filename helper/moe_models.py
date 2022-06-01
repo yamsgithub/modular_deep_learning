@@ -29,11 +29,13 @@ class cross_entropy_loss(nn.Module):
         crossentropy_loss = self.criterion(logp, targets)
         return crossentropy_loss
 
-def entropy(p):
+def entropy(p, reduction='mean'):
     logp = torch.log2(p)
     with torch.no_grad():
         logp = np.nan_to_num(logp.cpu().numpy(), neginf=0)
-        entropy_val = (-1*torch.sum(p.to(torch.device('cpu'))*logp,dim=len(p.shape)-1)).mean()
+        entropy_val = (-1*torch.sum(p.to(torch.device('cpu'))*logp,dim=len(p.shape)-1))
+        if reduction == 'mean':
+            entropy_val = entropy_val.mean()
     return entropy_val
 
 # Coefficient of variation
