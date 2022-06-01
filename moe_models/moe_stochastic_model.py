@@ -15,11 +15,7 @@ else:
     print('device', device)
 
 
-class moe_stochastic_loss(nn.Module):
-    def __init__(self, loss_criterion):
-        super(moe_stochastic_loss,self).__init__()
-        self.default_reduction = 'none'
-        self.loss_criterion = loss_criterion(reduction='none')
+class moe_stochastic_loss:
 
     def reduction(self, r='none'):
         self.loss_criterion.reduction(r)
@@ -37,6 +33,7 @@ class moe_stochastic_loss(nn.Module):
         expected_loss = -1*torch.log(torch.sum(gate_outputs * expert_loss, 1))
         total_loss = torch.mean(expected_loss)
         return total_loss.to(device)   
+
 
 
 # The moe architecture that outputs a stochastic selection of an expert
@@ -73,6 +70,7 @@ class moe_stochastic_model(moe_models_base):
                 raise
 
             output = y[torch.arange(0,batch_size).reshape(batch_size,1).to(device), self.samples, :].squeeze()
+
         else:
             output = self.expert_outputs[:,0,:]
         
