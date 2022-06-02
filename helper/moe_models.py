@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
 import numpy as np
 
 
@@ -28,6 +29,31 @@ class cross_entropy_loss(nn.Module):
         logp = torch.log(outputs+eps).to(device)
         crossentropy_loss = self.criterion(logp, targets)
         return crossentropy_loss
+
+class stochastic_loss(nn.Module):
+
+    def __init__(self, loss_criterion):
+        super(stochastic_loss, self).__init__()
+        self.default_reduction = 'none'
+        self.loss_criterion = loss_criterion(reduction='none')
+
+    def reduction(self, r='none'):
+        self.loss_criterion.reduction(r)
+
+    def forward(self, outputs, expert_outputs, gate_outputs, target):
+        expert_outputs = torch.transpose(expert_outputs, 0,1)
+        expert_loss = []
+        for i in range(expert_outputs.shape[0]):
+            loss = self.loss_criterion(expert_outputs[i], None, None, target)
+            if len(loss.shape) > 1:
+                loss = torch.mean(loss, dim=1)
+            expert_loss.append(torch.exp(-0.5*loss))
+        expert_loss = torch.stack(expert_loss)
+        expert_loss.transpose_(0,1)
+        expected_loss = -1*torch.log(torch.sum(gate_outputs * expert_loss, 1))
+        total_loss = torch.mean(expected_loss)
+        return total_loss.to(device)   
+
 
 def entropy(p, reduction='mean'):
     logp = torch.log2(p)
