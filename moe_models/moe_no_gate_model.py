@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.distributions.categorical import Categorical
+
 import numpy as np
+
 from sklearn.metrics import confusion_matrix
 
 from helper import moe_models
@@ -20,6 +23,9 @@ class moe_no_gate_model(moe_models_base):
         super( moe_no_gate_model,self).__init__(num_experts, num_classes, augment, attention_flag, hidden, experts, gate, task)
 
     def forward(self, inputs, T=1.0):
+
+        batch_size = inputs.shape[0]
+        
         y = []
         h = []
         for i, expert in enumerate(self.experts):
@@ -36,17 +42,25 @@ class moe_no_gate_model(moe_models_base):
         p = F.softmin(h/T, dim=1)
 
         self.gate_outputs = p
+        
+        try:
+            m  = Categorical(p)
+            self.samples = m.sample().reshape(len(p), 1).to(device)
+        except:
+            raise
 
-        # reshape gate output so probabilities correspond 
-        # to each expert
-        p = p.reshape(p.shape[0],p.shape[1], 1)
+        output = y[torch.arange(0,batch_size).reshape(batch_size,1).to(device), self.samples, :].squeeze()
 
-        # repeat probabilities number of classes times so
-        # dimensions correspond
-        p = p.repeat(1,1,y.shape[2])
+        # # reshape gate output so probabilities correspond 
+        # # to each expert
+        # p = p.reshape(p.shape[0],p.shape[1], 1)
 
-        # expected sum of expert outputs
-        output = torch.sum(p*y, 1)
+        # # repeat probabilities number of classes times so
+        # # dimensions correspond
+        # p = p.repeat(1,1,y.shape[2])
+
+        # # expected sum of expert outputs
+        # output = torch.sum(p*y, 1)
 
         return output
 
