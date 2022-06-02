@@ -66,7 +66,7 @@ class moe_models_base(nn.Module):
               loss_criterion, optimizer_moe, optimizer_gate=None, optimizer_experts=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
               w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
-              T=[1.0]*10, T_decay=0.0, T_decay_start=0,
+              T=[1.0]*10, T_decay=0.0, T_decay_start=0, no_gate_T = 1.0,
               accuracy=None, epochs=10, model_name='moe_expectation_model'):
 
         history = {'loss':[], 'loss_importance':[], 'baseline_losses':[],
@@ -145,7 +145,11 @@ class moe_models_base(nn.Module):
                 else:
                    all_labels = torch.cat((all_labels,labels))
 
-                outputs = self(inputs)
+                if model_name == 'moe_no_gate_model':
+                    outputs = self(inputs, no_gate_T)
+                else:
+                    outputs = self(inputs)
+                    
                 gate_outputs = self.gate_outputs
                 expert_outputs = self.expert_outputs
 
@@ -252,11 +256,11 @@ class moe_models_base(nn.Module):
                     expert_train_running_accuracy[index] = expert_train_running_accuracy[index] + torch.sum(acc)
                     expert_sample_train_running_accuracy[index] = expert_sample_train_running_accuracy[index] + exp_sample_acc
 
-                    if model_name == 'moe_expectation_model' or model_name == 'moe_no_gate_model':
+                    if model_name == 'moe_expectation_model':
                         loss_criterion.reduction('none')
                         e_loss = loss_criterion(expert_outputs[:,index,:], None, None, labels)
                         loss_criterion.reduction(loss_criterion.default_reduction)
-                    elif model_name == 'moe_stochastic_model':
+                    elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
                         e_loss = loss_criterion.loss_criterion(expert_outputs[:,index,:], None, None, labels)
                     
                     e_sample_loss = torch.sum(torch.matmul(gate_outputs[:, index].flatten(), e_loss))
@@ -351,9 +355,9 @@ class moe_models_base(nn.Module):
                 p = p.repeat(y.shape[0],1,y.shape[2])
                 # expected sum of expert outputs
                 output = torch.sum(p*y, 1)
-                if model_name == 'moe_expectation_model' or model_name == 'moe_no_gate_model':
+                if model_name == 'moe_expectation_model':
                     baseline_losses.append(loss_criterion(output, None,None,l))
-                elif model_name == 'moe_stochastic_model':
+                elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
                     baseline_losses.append(loss_criterion.loss_criterion(output,None, None, l))                    
                     
                 
@@ -363,9 +367,9 @@ class moe_models_base(nn.Module):
                 p = p.reshape(p.shape[0],p.shape[1], 1)
                 p = p.repeat(1,1,y.shape[2])
                 output = torch.sum(p*y, 1)
-                if model_name == 'moe_expectation_model' or model_name == 'moe_no_gate_model':
+                if model_name == 'moe_expectation_model':
                     baseline_losses.append(loss_criterion(output,None, None, l))
-                elif model_name == 'moe_stochastic_model':
+                elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
                     baseline_losses.append(loss_criterion.loss_criterion(output,None,None, l))
                 history['baseline_losses'].append(baseline_losses)
 
