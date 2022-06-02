@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions.categorical import Categorical
+
 import numpy as np
 
-from helper import moe_models
 from moe_models.moe_models_base import moe_models_base
 
 if torch.cuda.is_available():
@@ -13,27 +13,6 @@ if torch.cuda.is_available():
 else:
     device = torch.device("cpu")
     print('device', device)
-
-
-class moe_stochastic_loss:
-
-    def reduction(self, r='none'):
-        self.loss_criterion.reduction(r)
-
-    def forward(self, outputs, expert_outputs, gate_outputs, target):
-        expert_outputs = torch.transpose(expert_outputs, 0,1)
-        expert_loss = []
-        for i in range(expert_outputs.shape[0]):
-            loss = self.loss_criterion(expert_outputs[i], None, None, target)
-            if len(loss.shape) > 1:
-                loss = torch.mean(loss, dim=1)
-            expert_loss.append(torch.exp(-0.5*loss))
-        expert_loss = torch.stack(expert_loss)
-        expert_loss.transpose_(0,1)
-        expected_loss = -1*torch.log(torch.sum(gate_outputs * expert_loss, 1))
-        total_loss = torch.mean(expected_loss)
-        return total_loss.to(device)   
-
 
 
 # The moe architecture that outputs a stochastic selection of an expert
