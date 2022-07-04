@@ -1,10 +1,16 @@
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm  # colormaps 
 import seaborn as sns
+from itertools import product
+import os
 
 import numpy as np
 
+from sklearn.metrics import confusion_matrix
+
 import torch
+
+from helper.moe_models import entropy
 
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
@@ -175,3 +181,699 @@ def plot_accuracy_by_experts(models, total_experts, save_as):
         plt.close()
 
 
+def generate_plot_file(dataset, temp=1.0, w_importance=0.0, w_ortho=0.0, w_sample_sim_same=0.0, w_sample_sim_diff=0.0, w_exp_gamma=0.0, specific=''):
+    plot_file = dataset
+    if w_importance > 0:
+        plot_file += '_importance_'+'{:.1f}'.format(w_importance)
+    if not temp == 1.0:
+        plot_file += '_temp_'+'{:.1f}'.format(temp)
+    if w_ortho > 0:
+        plot_file += '_ortho_'+'{:.1f}'.format(w_ortho)
+    if w_sample_sim_same > 0:
+        if w_sample_sim_same < 1:
+            plot_file += '_sample_sim_same_'+str(w_sample_sim_same)
+        else:
+            plot_file += '_sample_sim_same_'+'{:.1f}'.format(w_sample_sim_same)
+    if w_sample_sim_diff > 0:
+        if w_sample_sim_diff < 1:
+            plot_file += '_sample_sim_diff_'+str(w_sample_sim_diff)
+        else:
+            plot_file += '_sample_sim_diff_'+'{:.1f}'.format(w_sample_sim_diff)
+    if w_exp_gamma > 0:
+        plot_file += '_exp_gamma_'+'{:.3f}'.format(w_exp_gamma).strip('0')
+    plot_file += '_'+specific
+    
+    return plot_file
+
+
+def find_best_model(m, temps=[1.0], w_importance_range=[0.0], 
+            w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0], 
+                    total_experts=5, num_classes=10, model_path=None):
+
+    min_val_error = float('inf')
+    best_model = None
+    best_model_file = None
+    for T, w_importance, w_sample_sim_same, w_sample_sim_diff in product(temps, w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
+        
+        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,                                
+                               specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+        models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+        for model in models:
+            for e_key, e_val in model.items():
+                history = model[e_key]['experts'][total_experts]['history']
+                val_error = 1-history['val_accuracy'][-1]
+                if min_val_error > val_error:
+                    min_val_error = val_error
+                    best_model = model
+                    best_model_file = plot_file
+    
+    print('Min Validation Error','{:.3f}'.format(min_val_error))                
+    return best_model, best_model_file
+
+
+
+def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
+                      w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0], total_experts=5, num_classes=10, 
+                      classes=list(range(10)),num_epochs=20, index=0, fig_path=None, model_path=None):
+    
+    fontsize = 15
+    fontsize_label = 12
+
+    model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
+                                   w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
+                                        num_classes=num_classes, total_experts=total_experts, model_path=model_path)
+    print(model_file)
+
+    for e_key, e_val in model.items():
+        history = model[e_key]['experts'][total_experts]['history']
+        gate_probabilities = torch.vstack(history['gate_probabilities']).view(20,-1,total_experts)
+
+        print(len(gate_probabilities), gate_probabilities.shape)
+
+        gate_probabilities_sum = torch.sum(gate_probabilities, dim =1).cpu().detach().numpy()        
+
+        fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
+
+        palette = sns.color_palette("Set2")
+        for i in range(total_experts):
+            sns.lineplot(x=range(num_epochs), y=gate_probabilities_sum[:,i], 
+                         hue=[i]*num_epochs, palette=palette[i:i+1], ax=ax)
+        ax.set_ylim(bottom=0)
+        plt.xlabel('Epochs')
+        plt.ylabel('Number of Samples')
+        plt.legend(['E'+str(i+1) for i in range(5)])
+        plt.show()
+
+        cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
+        with torch.no_grad(): 
+            for images, labels in test_loader:
+                print(labels)
+                images, labels = images.to(device), labels.to(device)
+                moe_model = e_val['experts'][total_experts]['model']
+
+                # predict the classes for test data
+                pred = moe_model(images)
+                pred_labels = torch.argmax(pred, dim=1)
+
+                expert_outputs = moe_model.expert_outputs
+                gate_outputs = moe_model.gate_outputs
+
+                fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
+                x = ['Expert '+str(i+1) for i in range(total_experts)]
+                y = torch.sum(gate_outputs, dim=0).cpu().numpy()
+
+                sns.barplot(x=x, y=y, palette=palette, ax=ax)
+
+                plt.ylabel('Number of samples', fontsize=fontsize_label)
+                ax.tick_params(axis='both', labelsize=10)
+
+                plt.title('Samples sent to each expert', fontsize=fontsize)
+                plot_file = model_file.replace('models.pt', 'expert_usage.png')
+                plt.savefig(os.path.join(fig_path, plot_file))
+                plt.show()
+
+                exp_class_prob = torch.zeros(total_experts, num_classes).to(device)
+                for e in range(total_experts):
+                    for index, l in enumerate(labels):
+                        exp_class_prob[e,l] += gate_outputs[index,e]  
+
+                exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
+
+                fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(12,4))
+
+                sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                                xticklabels=[classes[i] for i in range(0, num_classes)],
+                                cmap=cmap, annot=True, fmt='d', ax=ax[0])
+                sns.heatmap(exp_total_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                                xticklabels=['Total'],
+                                cmap=cmap, annot=True, fmt='d', ax=ax[1])
+                plt.show()
+
+                # get the experts selected by the gate for each sample
+                pred_gate_labels = torch.argmax(gate_outputs, dim=1)
+
+                # plot the expert selection table
+                print('\nExperts used by the gate for classification of each digit')
+                class_expert_table = np.asarray([[0] * num_classes]*total_experts)
+                for label, expert in zip(labels, pred_gate_labels):
+                    class_expert_table[expert,label] += 1
+
+
+                fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 5))
+                sns.heatmap(class_expert_table, yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                            xticklabels=[classes[i] for i in range(0, num_classes)],
+                            annot=True, cmap=cmap, fmt='d', ax=ax)
+
+                plt.title('Experts selected per digit for 2000 samples of\n MNIST test data', 
+                                 fontsize=fontsize)
+                
+                plot_file = model_file.replace('models.pt', 'class_expert_table.png')
+                plt.savefig(os.path.join(fig_path, plot_file))
+
+                fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(6, 4))
+                sns.heatmap(confusion_matrix(labels.cpu(), pred_labels.cpu()), annot=True, cmap=cmap, fmt='d', ax=ax)
+
+                plt.show()
+
+
+def expert_usage_entropy(history, total_experts=5, num_epochs=20):
+    gate_probability = torch.vstack(history['gate_probabilities']).view(num_epochs, -1, total_experts)
+    gate_probabilities_sum = torch.mean(gate_probability[-1,:,:].view(-1, total_experts), dim=0)
+    return entropy(gate_probabilities_sum).item()
+
+
+def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None, 
+            model_with_reg=None, model_without_reg=None, model_with_reg_temp=None, 
+            model_with_attention=None, model_with_attn_reg=None, model_dual_temp_with_attention = None, 
+            model_output_reg =None, model_output_imp_reg=None,model_temp_output_reg=None, 
+            mnist_attn_output_reg=None, model_sample_sim_reg=None,model_with_exp_reg=None,
+            temps=[1.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
+            w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
+            total_experts=5, num_classes=10, num_epochs=20, classes=None, testloader=None, figname=None,fig_path=None, model_path=None):
+
+    x = []
+    hues = []
+    x_temp = []
+    y_error = []
+    y_val_error = []
+    y_mi = []
+    y_H_EY = []
+    y_sample_H = []
+    y_sample_H_T = []
+    y_sample_hue = []
+    y_expert_usage = []
+
+    w_importance = 0.0
+    
+    if not model_single is None:
+        m = model_single
+
+        plot_file = generate_plot_file(m, specific=str(num_classes)+'_models.pt')
+
+        model_0 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+        for history in model_0['history']:
+            error = [e.item() for e in 1-np.asarray(history['accuracy'])]
+            val_error = [e.item() for e in 1-np.asarray(history['val_accuracy'])]
+            y_error.append(error[-1])
+            y_val_error.append(val_error[-1])
+            x.append('SM')
+            hues.append('Single Model')
+    
+    if not model_without_reg is None:
+
+        for name, m in model_without_reg.items():
+
+            plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_1:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    if name == 'ignore':
+                        x.append('I 0.0')
+                        hues.append('MoE')
+                    else:
+                        x.append('I ' + name +' 0.0' )
+                        hues.append('MoE ' + name)
+
+      
+    if not model_with_reg is None:
+
+        for name, m in model_with_reg.items():
+
+            for w_importance in w_importance_range:
+            
+                plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+                model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+                for model in model_2:
+                    for e_key, e_val in model.items():
+                        history = model[e_key]['experts'][total_experts]['history']
+                        error = 1-np.asarray(history['accuracy'])
+                        val_error = 1-np.asarray(history['val_accuracy'])
+                        y_error.append(error[-1])
+                        y_val_error.append(val_error[-1])
+                        y_mi.append(history['mutual_EY'][-1])
+                        y_H_EY.append(history['H_EY'][-1])
+                        y_sample_H.append(history['sample_entropy'][-1])
+                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                        if name == 'ignore':
+                            x.append('I '+"{:.1f}".format(w_importance))
+                            hues.append('MoE with regularization')
+                        else:
+                            x.append('I '+name+" {:.1f}".format(w_importance))
+                            hues.append('MoE '+name+' with regularization')
+                            
+
+
+    w_importance = 0.0
+    
+    if not model_with_temp is None:
+    
+        m = model_with_temp
+
+        for T in temps:   
+
+            plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+
+            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
+            # model you build above
+            model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_3:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    y_sample_H_T.append(history['sample_entropy'][-1])
+                    y_sample_H_T.append(history['sample_entropy_T'][-1])
+                    x.append('T '+"{:.1f}".format(T))
+                    x_temp.append('T '+"{:.1f}".format(T))
+                    x_temp.append('T '+"{:.1f}".format(T))
+                    y_sample_hue.append('Low Temp')
+                    y_sample_hue.append('High Temp')               
+                    hues.append('Moe with dual temp')
+
+    if not model_with_temp_decay is None:
+        m = model_with_temp_decay
+
+        for T in temps:   
+
+            plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+
+            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
+            # model you build above
+            model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_3:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('T '+"{:.1f}".format(T)+' D')
+                    hues.append('Moe with dual temp on decay')
+
+    
+    if not model_with_reg_temp is None:
+        m = model_with_reg_temp
+
+        for T, w_importance in product(temps, w_importance_range):   
+
+            plot_file = generate_plot_file(m, temp=T, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
+            # model you build above
+            model_4 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_4:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('T '+"{:.1f}".format(T)+'+ I '+"{:.1f}".format(w_importance))
+                    hues.append('Moe with reg and dual temp')
+                
+    if not model_output_reg is None:
+        m = model_output_reg
+
+        for w_ortho in w_ortho_range:
+
+            plot_file = generate_plot_file(m, w_ortho=w_ortho, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_5 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_5:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('O '+"{:.1f}".format(w_ortho))
+                    hues.append('MoE with output regularization')
+    
+    if not model_output_imp_reg is None:
+        m = model_output_imp_reg
+
+        for w_ortho, w_importance in product(w_ortho_range, w_importance_range):
+
+            plot_file = generate_plot_file(m, w_importance=w_importance, w_ortho=w_ortho, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_5 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_5:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('I '+"{:.1f}".format(w_importance) + ' + O '+"{:.1f}".format(w_ortho))
+                    hues.append('MoE with output and gate regularization')
+                    
+
+                
+    if not model_temp_output_reg is None:
+        m = model_temp_output_reg
+
+        for T, w_ortho in product(temps, w_ortho_range):   
+
+            plot_file = generate_plot_file(m, temp=T,w_ortho=w_ortho, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
+            # model you build above
+            model_4 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_4:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('T '+"{:.1f}".format(T)+'+ O '+"{:.1f}".format(w_ortho))
+                    hues.append('Moe with outputreg and dual temp')
+                    
+    if not model_sample_sim_reg is None:
+        m = model_sample_sim_reg
+
+        for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
+
+            plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+            
+            w_sample_sim = ''
+            if w_sample_sim_same < 0.1:
+                w_sample_sim += 'S%.0e' % decimal.Decimal(w_sample_sim_same)
+            else:
+                w_sample_sim += 'S'+"{:.1f}".format(w_sample_sim_same)
+
+            if w_sample_sim_diff < 0.1:
+                w_sample_sim += 'D%.0e' % decimal.Decimal(w_sample_sim_diff)
+            else:
+                w_sample_sim += 'D'+"{:.1f}".format(w_sample_sim_diff)
+
+
+            error_values = []
+            for model in model_2:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('SS ' + w_sample_sim)
+                    hues.append('MoE with sample similarity regularization')
+    if not model_with_attention is None:
+        
+        for name, m in model_with_attention.items():
+
+            plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_1:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    
+                    if name == 'ignore':
+                        x.append('Attention')
+                        hues.append('MoE with attention')
+                    else:
+                        x.append('Attention ' + name )
+                        hues.append('MoE ' + name + ' with attention')
+
+    if not model_with_exp_reg is None:
+        
+        m = model_with_exp_reg
+
+        for w_exp_gamma in w_exp_gamma_range:
+            
+            plot_file = generate_plot_file(m, w_exp_gamma=w_exp_gamma, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            error_values = []
+            for model in model_2:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('ER '+"{:.3f}".format(w_exp_gamma).strip('0'))
+                    hues.append('MoE with exponential reg') 
+            
+    if not model_with_attn_reg is None:
+        
+        for name, m in model_with_attn_reg.items():
+ 
+            for w_importance in w_importance_range:
+
+                plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+                model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+                for model in model_2:
+                    for e_key, e_val in model.items():
+                        history = model[e_key]['experts'][total_experts]['history']
+                        error = 1-np.asarray(history['accuracy'])
+                        val_error = 1-np.asarray(history['val_accuracy'])
+                        y_error.append(error[-1])
+                        y_val_error.append(val_error[-1])
+                        y_mi.append(history['mutual_EY'][-1])
+                        y_H_EY.append(history['H_EY'][-1])
+                        y_sample_H.append(history['sample_entropy'][-1])
+                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                        
+                        if name == 'ignore':
+                            x.append('Attn + I '+"{:.1f}".format(w_importance))
+                            hues.append('MoE with attention and regularization')
+                        else:
+                            x.append('Attn + I '+name+" {:.1f}".format(w_importance))
+                            hues.append('MoE '+name+' with attention and regularization')
+    
+    
+    if not  model_dual_temp_with_attention is None:
+
+        m = model_dual_temp_with_attention
+
+        for T in temps:   
+
+            plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+
+            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
+            # model you build above
+            model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_3:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    y_sample_H_T.append(history['sample_entropy'][-1])
+                    y_sample_H_T.append(history['sample_entropy_T'][-1])
+                    x.append('Attn + T '+"{:.1f}".format(T))
+                    x_temp.append('Attn + T '+"{:.1f}".format(T))
+                    x_temp.append('Attn + T '+"{:.1f}".format(T))
+                    y_sample_hue.append('Low Temp')
+                    y_sample_hue.append('High Temp')               
+                    hues.append('Moe with dual temp and attention')
+                    
+    if not mnist_attn_output_reg is None:
+        m = mnist_attn_output_reg
+
+        for w_ortho in w_ortho_range:
+            
+            plot_file = generate_plot_file(m, w_ortho=w_ortho, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+            model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+            for model in model_2:
+                for e_key, e_val in model.items():
+                    history = model[e_key]['experts'][total_experts]['history']
+                    error = 1-np.asarray(history['accuracy'])
+                    val_error = 1-np.asarray(history['val_accuracy'])
+                    y_error.append(error[-1])
+                    y_val_error.append(val_error[-1])
+                    y_mi.append(history['mutual_EY'][-1])
+                    y_H_EY.append(history['H_EY'][-1])
+                    y_sample_H.append(history['sample_entropy'][-1])
+                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                    x.append('Attn + O '+"{:.1f}".format(w_ortho))
+                    hues.append('MoE with attention and output reg')
+                
+            
+    palette = sns.color_palette("Set2")
+    fontsize = 20
+    labelsize = 15
+    plt.tight_layout()
+    
+    
+    _, indices = np.unique(np.asarray(x), return_index=True)
+    xlabels = np.asarray(x)[sorted(indices)]
+    
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
+    sns.boxplot(x=x, y=y_error, hue=hues, palette=palette, dodge=False, ax=ax)
+    ax.set_title('Comparing training errors for different MoE training methods', fontsize=fontsize)
+    ax.set_xlabel('MoE training methods', fontsize=labelsize)
+    ax.set_ylabel('training error', fontsize=labelsize)      
+    ax.set_xticklabels(xlabels, rotation='vertical')
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=labelsize)
+
+    plot_file = generate_plot_file(figname, specific='training_error_boxplot.png')             
+    plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
+    
+    plt.show()
+    
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
+    sns.boxplot(x=x, y=y_val_error, hue=hues,palette=palette, dodge=False, ax=ax)
+    ax.set_title('Comparing validation errors for different MoE training methods', fontsize=fontsize)
+    ax.set_ylabel('validation error', fontsize=labelsize)
+    ax.set_xlabel('MoE training methods', fontsize=labelsize)
+    ax.set_xticklabels(xlabels, rotation='vertical')
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=labelsize)
+    
+    plot_file = generate_plot_file(figname, specific='val_error_boxplot.png')             
+    plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
+    plt.show()
+    
+    if not model_single is None:
+        x = x[10:]
+        hues = hues[10:]
+        palette = palette[1:]
+        xlabels = xlabels[1:]
+        
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
+    sns.boxplot(x=x, y=y_mi, hue=hues, palette=palette, dodge=False,ax=ax)
+    ax.set_title('Comparing joint mutual information of experts $E$ and MoE model output $Y$ for different MoE training methods', fontsize=fontsize)
+    ax.set_ylabel('EY mutual information', fontsize=labelsize)  
+    ax.set_xlabel('MoE training methods', fontsize=labelsize)
+    ax.set_xticklabels(xlabels, rotation='vertical')
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=labelsize)
+
+    plot_file = generate_plot_file(figname, specific='mutual_info_boxplot.png')             
+    plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
+    
+    plt.show()
+    
+#     fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
+#     sns.boxplot(x=x, y=y_H_EY, hue=hues, palette=palette, dodge=False,ax=ax)
+#     ax.set_ylabel('EY entropy')
+#     ax.set_title('EY entropy')
+#     ax.set_xticklabels(xlabels, rotation='vertical')
+#     plt.savefig(os.path.join(fig_path,'mnist_boxplot_ey_entropy.png'))
+#     plt.show()
+    
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
+    sns.boxplot(x=x, y=y_sample_H, hue=hues, palette=palette, dodge=False, ax=ax)
+    ax.set_title('Comparing per sample entropy for different MoE training methods', fontsize=fontsize)
+    ax.set_ylabel('Per sample entropy', fontsize=labelsize)
+    ax.set_xlabel('MoE training methods', fontsize=labelsize)
+    ax.set_xticklabels(xlabels, rotation='vertical')
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=labelsize)
+
+    plot_file = generate_plot_file(figname, specific='sample_entropy_boxplot.png')             
+    plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
+    plt.show()
+    
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
+    sns.boxplot(x=x, y=y_expert_usage, hue=hues, palette=palette, dodge=False, ax=ax)
+    ax.set_title('Comparing expert usage entropy for different MoE training methods', fontsize=fontsize)
+    ax.set_ylabel('expert usage entropy', fontsize=labelsize)
+    ax.set_xlabel('MoE training methods', fontsize=labelsize)
+    ax.set_xticklabels(xlabels, rotation='vertical', fontsize=labelsize)
+    ax.tick_params(axis='both', labelsize=12)
+    plt.legend(fontsize=labelsize)
+
+    plot_file = generate_plot_file(figname, specific='expert_usage_entropy_boxplot.png')             
+    plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
+    plt.show()
+
+
+    if y_sample_H_T:
+        palette2 = sns.color_palette("hls", 8)
+
+        fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
+        sns.boxplot(x=x_temp, y=y_sample_H_T, hue=y_sample_hue, palette=[palette2[3], palette2[7]], ax=ax)
+        ax.set_ylabel('Per sample entropy')
+        ax.set_title('per sample entropy for high T')
+        plt.show()
+        
+
+
+
+    
