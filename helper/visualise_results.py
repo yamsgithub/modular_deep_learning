@@ -333,7 +333,10 @@ def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[0.0], w_o
                 plt.savefig(os.path.join(fig_path, plot_file))
 
                 fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(6, 4))
-                sns.heatmap(confusion_matrix(labels.cpu(), pred_labels.cpu()), annot=True, cmap=cmap, fmt='d', ax=ax)
+                sns.heatmap(confusion_matrix(labels.cpu(), pred_labels.cpu()), 
+                            xticklabels=[classes[i] for i in range(0, num_classes)],
+                            yticklabels=[classes[i] for i in range(0, num_classes)], 
+                            annot=True, cmap=cmap, fmt='d', ax=ax)
 
                 plt.show()
 
