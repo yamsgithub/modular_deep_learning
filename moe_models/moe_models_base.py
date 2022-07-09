@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 from sklearn.metrics import confusion_matrix
 
+from torch.profiler import profile, record_function, ProfilerActivity
+
 from helper import moe_models
 
 if torch.cuda.is_available():
@@ -18,7 +20,7 @@ def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs,
     expert_outputs_T = model.expert_outputs
     gate_outputs_T = model.gate_outputs
 
-    optimizer_experts.zero_grad()
+    optimizer_experts.zero_grad(set_to_none=True)
     loss_experts = loss_criterion(outputs_with_T, expert_outputs_T, gate_outputs_T, labels)
     loss_experts.backward()
    
@@ -26,7 +28,7 @@ def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs,
         for param in expert.parameters():
             param.requires_grad = False
      
-    optimizer_gate.zero_grad()
+    optimizer_gate.zero_grad(set_to_none=True)
     loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
     
     if not regularization == 0.0:
@@ -63,7 +65,7 @@ class moe_models_base(nn.Module):
         self.task = task
     
     def train(self, trainloader, testloader,
-              loss_criterion, optimizer_moe, optimizer_gate=None, optimizer_experts=None, 
+              loss_criterion, optimizer_moe, scheduler_moe=None, optimizer_gate=None, optimizer_experts=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
               w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
               T=[1.0]*10, T_decay=0.0, T_decay_start=0, no_gate_T = 1.0,
@@ -148,8 +150,11 @@ class moe_models_base(nn.Module):
                 if model_name == 'moe_no_gate_model':
                     outputs = self(inputs, no_gate_T)
                 else:
+                    #with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
+                    #     with record_function("model_inference"):
                     outputs = self(inputs)
-                    
+                #print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=100))
+    
                 gate_outputs = self.gate_outputs
                 expert_outputs = self.expert_outputs
 
@@ -233,7 +238,7 @@ class moe_models_base(nn.Module):
                     
                 else:
                    # zero the parameter gradients
-                   optimizer_moe.zero_grad()
+                   optimizer_moe.zero_grad(set_to_none=True)
                    loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
                    if not regularization == 0: 
                         loss += regularization   
@@ -244,8 +249,8 @@ class moe_models_base(nn.Module):
 
                 running_loss += loss.item()
 
-
-                outputs = self(inputs)
+                with torch.no_grad():
+                   outputs = self(inputs)
                 
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
@@ -304,7 +309,9 @@ class moe_models_base(nn.Module):
                     #mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey)
 
                 num_batches+=1
-            
+            if not scheduler_moe is None: 
+               scheduler_moe.step()
+ 
             mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey.detach().cpu().numpy())
 
             with torch.no_grad():
@@ -525,7 +532,7 @@ class moe_models_base(nn.Module):
                 expert_outputs = self.expert_outputs
 
                 # zero the parameter gradients
-                optimizer_gate.zero_grad()
+                optimizer_gate.zero_grad(set_to_none=True)
                 loss = loss_criterion(outputs, labels)
                 running_loss += loss.item()
 
