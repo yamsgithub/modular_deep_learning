@@ -236,7 +236,7 @@ def find_best_model(m, temps=[1.0], w_importance_range=[0.0],
 
 def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
                       w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0], total_experts=5, num_classes=10, 
-                      classes=list(range(10)),num_epochs=20, index=0, fig_path=None, model_path=None):
+                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None):
     
     fontsize = 15
     fontsize_label = 12
@@ -248,7 +248,7 @@ def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[0.0], w_o
 
     for e_key, e_val in model.items():
         history = model[e_key]['experts'][total_experts]['history']
-        gate_probabilities = torch.vstack(history['gate_probabilities']).view(20,-1,total_experts)
+        gate_probabilities = torch.vstack(history['gate_probabilities']).view(num_epochs,-1,total_experts)
 
         print(len(gate_probabilities), gate_probabilities.shape)
 
@@ -378,8 +378,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         model_0 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
         for history in model_0['history']:
-            error = [e.item() for e in 1-np.asarray(history['accuracy'])]
-            val_error = [e.item() for e in 1-np.asarray(history['val_accuracy'])]
+            error = [e.item() for e in 1-torch.vstack(history['accuracy'])]
+            val_error = [e.item() for e in 1-torch.vstack(history['val_accuracy'])]
             y_error.append(error[-1])
             y_val_error.append(val_error[-1])
             x.append('SM')
@@ -396,8 +396,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_1:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -425,8 +425,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                 for model in model_2:
                     for e_key, e_val in model.items():
                         history = model[e_key]['experts'][total_experts]['history']
-                        error = 1-np.asarray(history['accuracy'])
-                        val_error = 1-np.asarray(history['val_accuracy'])
+                        error = 1-torch.vstack(history['accuracy'])
+                        val_error = 1-torch.vstack(history['val_accuracy'])
                         y_error.append(error[-1])
                         y_val_error.append(val_error[-1])
                         y_mi.append(history['mutual_EY'][-1])
@@ -460,8 +460,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_3:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -492,8 +492,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_3:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -518,8 +518,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_4:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -541,8 +541,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_5:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -564,8 +564,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_5:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -591,8 +591,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_4:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -627,8 +627,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_2:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -648,8 +648,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_1:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -678,8 +678,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_2:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -702,8 +702,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                 for model in model_2:
                     for e_key, e_val in model.items():
                         history = model[e_key]['experts'][total_experts]['history']
-                        error = 1-np.asarray(history['accuracy'])
-                        val_error = 1-np.asarray(history['val_accuracy'])
+                        error = 1-torch.vstack(history['accuracy'])
+                        val_error = 1-torch.vstack(history['val_accuracy'])
                         y_error.append(error[-1])
                         y_val_error.append(val_error[-1])
                         y_mi.append(history['mutual_EY'][-1])
@@ -735,8 +735,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_3:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -764,8 +764,8 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             for model in model_2:
                 for e_key, e_val in model.items():
                     history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-np.asarray(history['accuracy'])
-                    val_error = 1-np.asarray(history['val_accuracy'])
+                    error = 1-torch.vstack(history['accuracy'])
+                    val_error = 1-torch.vstack(history['val_accuracy'])
                     y_error.append(error[-1])
                     y_val_error.append(val_error[-1])
                     y_mi.append(history['mutual_EY'][-1])
@@ -786,7 +786,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
     xlabels = np.asarray(x)[sorted(indices)]
     
     fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
-    sns.boxplot(x=x, y=y_error, hue=hues, palette=palette, dodge=False, ax=ax)
+    sns.boxplot(x=x, y=torch.hstack(y_error).cpu().numpy(), hue=hues, palette=palette, dodge=False, ax=ax)
     ax.set_title('Comparing training errors for different MoE training methods', fontsize=fontsize)
     ax.set_xlabel('MoE training methods', fontsize=labelsize)
     ax.set_ylabel('training error', fontsize=labelsize)      
@@ -800,7 +800,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
     plt.show()
     
     fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
-    sns.boxplot(x=x, y=y_val_error, hue=hues,palette=palette, dodge=False, ax=ax)
+    sns.boxplot(x=x, y=torch.hstack(y_val_error).cpu().numpy(), hue=hues,palette=palette, dodge=False, ax=ax)
     ax.set_title('Comparing validation errors for different MoE training methods', fontsize=fontsize)
     ax.set_ylabel('validation error', fontsize=labelsize)
     ax.set_xlabel('MoE training methods', fontsize=labelsize)
@@ -819,7 +819,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         xlabels = xlabels[1:]
         
     fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
-    sns.boxplot(x=x, y=y_mi, hue=hues, palette=palette, dodge=False,ax=ax)
+    sns.boxplot(x=x, y=torch.hstack(y_mi).cpu().numpy(), hue=hues, palette=palette, dodge=False,ax=ax)
     ax.set_title('Comparing joint mutual information of experts $E$ and MoE model output $Y$ for different MoE training methods', fontsize=fontsize)
     ax.set_ylabel('EY mutual information', fontsize=labelsize)  
     ax.set_xlabel('MoE training methods', fontsize=labelsize)
@@ -841,7 +841,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
 #     plt.show()
     
     fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20, 8))
-    sns.boxplot(x=x, y=y_sample_H, hue=hues, palette=palette, dodge=False, ax=ax)
+    sns.boxplot(x=x, y=torch.hstack(y_sample_H).cpu().numpy(), hue=hues, palette=palette, dodge=False, ax=ax)
     ax.set_title('Comparing per sample entropy for different MoE training methods', fontsize=fontsize)
     ax.set_ylabel('Per sample entropy', fontsize=labelsize)
     ax.set_xlabel('MoE training methods', fontsize=labelsize)
@@ -871,7 +871,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         palette2 = sns.color_palette("hls", 8)
 
         fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
-        sns.boxplot(x=x_temp, y=y_sample_H_T, hue=y_sample_hue, palette=[palette2[3], palette2[7]], ax=ax)
+        sns.boxplot(x=x_temp, y=torch.hstack(y_sample_H_T).cpu().numpy(), hue=y_sample_hue, palette=[palette2[3], palette2[7]], ax=ax)
         ax.set_ylabel('Per sample entropy')
         ax.set_title('per sample entropy for high T')
         plt.show()
