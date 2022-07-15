@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm  # colormaps 
 import seaborn as sns
 from itertools import product
+import decimal
 import os
 
 import numpy as np
@@ -603,40 +604,46 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                     hues.append('Moe with outputreg and dual temp')
                     
     if not model_sample_sim_reg is None:
-        m = model_sample_sim_reg
 
-        for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
+        for name, m in model_sample_sim_reg.items():        
 
-            plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+            for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
 
-            model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
-            
-            w_sample_sim = ''
-            if w_sample_sim_same < 0.1:
-                w_sample_sim += 'S%.0e' % decimal.Decimal(w_sample_sim_same)
-            else:
-                w_sample_sim += 'S'+"{:.1f}".format(w_sample_sim_same)
+                plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+                
+                model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+                
+                w_sample_sim = ''
+                if w_sample_sim_same < 0.1:
+                    w_sample_sim += 'S%.0e' % decimal.Decimal(w_sample_sim_same)
+                else:
+                    w_sample_sim += 'S'+"{:.1f}".format(w_sample_sim_same)
 
-            if w_sample_sim_diff < 0.1:
-                w_sample_sim += 'D%.0e' % decimal.Decimal(w_sample_sim_diff)
-            else:
-                w_sample_sim += 'D'+"{:.1f}".format(w_sample_sim_diff)
+                if w_sample_sim_diff < 0.1:
+                    w_sample_sim += 'D%.0e' % decimal.Decimal(w_sample_sim_diff)
+                else:
+                    w_sample_sim += 'D'+"{:.1f}".format(w_sample_sim_diff)
 
 
-            error_values = []
-            for model in model_2:
-                for e_key, e_val in model.items():
-                    history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-torch.vstack(history['accuracy'])
-                    val_error = 1-torch.vstack(history['val_accuracy'])
-                    y_error.append(error[-1])
-                    y_val_error.append(val_error[-1])
-                    y_mi.append(history['mutual_EY'][-1])
-                    y_H_EY.append(history['H_EY'][-1])
-                    y_sample_H.append(history['sample_entropy'][-1])
-                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                    x.append('SS ' + w_sample_sim)
-                    hues.append('MoE with sample similarity regularization')
+                error_values = []
+                for model in model_2:
+                    for e_key, e_val in model.items():
+                        history = model[e_key]['experts'][total_experts]['history']
+                        error = 1-torch.vstack(history['accuracy'])
+                        val_error = 1-torch.vstack(history['val_accuracy'])
+                        y_error.append(error[-1])
+                        y_val_error.append(val_error[-1])
+                        y_mi.append(history['mutual_EY'][-1])
+                        y_H_EY.append(history['H_EY'][-1])
+                        y_sample_H.append(history['sample_entropy'][-1])
+                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                        if name == 'ignore':
+                            x.append('SS ' + w_sample_sim)
+                            hues.append('MoE with sample similarity regularization')
+                        else:
+                            x.append('SS ' +name +' '+ w_sample_sim)
+                            hues.append('MoE '+name+' with sample similarity regularization')
+                        
     if not model_with_attention is None:
         
         for name, m in model_with_attention.items():
