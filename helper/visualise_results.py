@@ -214,9 +214,9 @@ def find_best_model(m, temps=[1.0], w_importance_range=[0.0],
     min_val_error = float('inf')
     best_model = None
     best_model_file = None
-    for T, w_importance, w_sample_sim_same, w_sample_sim_diff in product(temps, w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
+    for T, w_importance in product(temps, w_importance_range):
         
-        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,                                
+        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
         models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
@@ -229,7 +229,23 @@ def find_best_model(m, temps=[1.0], w_importance_range=[0.0],
                     min_val_error = val_error
                     best_model = model
                     best_model_file = plot_file
-    
+
+    for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
+        
+        plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,                                
+                               specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+        models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+        for model in models:
+            for e_key, e_val in model.items():
+                history = model[e_key]['experts'][total_experts]['history']
+                val_error = 1-history['val_accuracy'][-1]
+                if min_val_error > val_error:
+                    min_val_error = val_error
+                    best_model = model
+                    best_model_file = plot_file
+
     print('Min Validation Error','{:.3f}'.format(min_val_error))                
     return best_model, best_model_file
 
