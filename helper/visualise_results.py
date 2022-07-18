@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm  # colormaps 
 import seaborn as sns
+import decimal
+
 from itertools import product
 import decimal
 import os
@@ -639,7 +641,6 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                     w_sample_sim += 'D%.0e' % decimal.Decimal(w_sample_sim_diff)
                 else:
                     w_sample_sim += 'D'+"{:.1f}".format(w_sample_sim_diff)
-
 
                 error_values = []
                 for model in model_2:
