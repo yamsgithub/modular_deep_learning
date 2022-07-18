@@ -81,32 +81,43 @@ def loss_importance(p, w_importance):
 
 def mutual_information(count_mat):
     (r,c) = count_mat.shape
-    joint_EY = np.zeros((r,c))
-    N = np.sum(count_mat)
+    joint_EY = torch.zeros((r,c), device=device)
+    N = torch.sum(count_mat)
     for i in range(r):
         for j in range(c):
             joint_EY[i,j] = count_mat[i,j]/N
-    marginal_Y = np.sum(joint_EY, axis=1)
-    marginal_E = np.sum(joint_EY, axis=0)
+    marginal_Y = torch.sum(joint_EY, dim=1)
+    marginal_E = torch.sum(joint_EY, dim=0)
 
-    #(r,c) = joint_EY.shape
-    #marginal_Y = np.sum(joint_EY, axis=1)
-    #marginal_E = np.sum(joint_EY, axis=0)
-    
-    log2_marginal_Y = np.ma.log2(marginal_Y).filled(fill_value=0.0)
+    log2_marginal_Y = torch.log2(marginal_Y)
+    mask_nan = torch.isnan(log2_marginal_Y)
+    mask_inf = torch.isinf(log2_marginal_Y)
+    log2_marginal_Y.masked_fill_(mask_nan, 0.0)
+    log2_marginal_Y.masked_fill_(mask_inf, 0.0)
+
     H_Y = 0.0
     for i in range(r):
         H_Y += marginal_Y[i]*log2_marginal_Y[i]
     H_Y = -1*H_Y    
 
-    log2_marginal_E = np.ma.log2(marginal_E).filled(fill_value=0.0)
+    log2_marginal_E = torch.log2(marginal_E)
+    mask_nan = torch.isnan(log2_marginal_E)
+    mask_inf = torch.isinf(log2_marginal_E)
+    log2_marginal_E.masked_fill_(mask_nan, 0.0)
+    log2_marginal_E.masked_fill_(mask_inf, 0.0)
+    
     H_E = 0.0
     for i in range(c):
         H_E += marginal_E[i]*log2_marginal_E[i]
     H_E = -1*H_E   
 
     H_EY = 0.0
-    log2_joint_EY = np.ma.log2(joint_EY).filled(fill_value=0.0)
+    log2_joint_EY = torch.log2(joint_EY)
+    mask_nan = torch.isnan(log2_joint_EY)
+    mask_inf = torch.isinf(log2_joint_EY)
+    log2_joint_EY.masked_fill_(mask_nan, 0.0)
+    log2_joint_EY.masked_fill_(mask_inf, 0.0)
+
     for j in range(c):
         for i in range(r):
             H_EY += joint_EY[i,j]*log2_joint_EY[i,j]

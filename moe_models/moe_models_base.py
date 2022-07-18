@@ -97,17 +97,17 @@ class moe_models_base(nn.Module):
             train_running_accuracy = 0.0 
             test_running_accuracy = 0.0
 
-            expert_train_running_accuracy = torch.zeros(self.num_experts)
-            expert_val_running_accuracy = torch.zeros(self.num_experts)
-            expert_sample_train_running_accuracy = torch.zeros(self.num_experts)
-            expert_sample_val_running_accuracy = torch.zeros(self.num_experts)
-            expert_sample_train_running_accuracy_T = torch.zeros(self.num_experts)
+            expert_train_running_accuracy = torch.zeros(self.num_experts, device=device)
+            expert_val_running_accuracy = torch.zeros(self.num_experts, device=device)
+            expert_sample_train_running_accuracy = torch.zeros(self.num_experts, device=device)
+            expert_sample_val_running_accuracy = torch.zeros(self.num_experts, device=device)
+            expert_sample_train_running_accuracy_T = torch.zeros(self.num_experts, device=device)
 
-            expert_train_running_loss = torch.zeros(self.num_experts)
-            expert_sample_train_running_loss = torch.zeros(self.num_experts)
-            expert_sample_train_running_loss_T = torch.zeros(self.num_experts)
+            expert_train_running_loss = torch.zeros(self.num_experts, device=device)
+            expert_sample_train_running_loss = torch.zeros(self.num_experts, device=device)
+            expert_sample_train_running_loss_T = torch.zeros(self.num_experts, device=device)
 
-            per_exp_class_samples = torch.zeros(self.num_experts, self.num_classes)
+            per_exp_class_samples = torch.zeros(self.num_experts, self.num_classes, device=device)
             
             running_entropy = 0.0
 
@@ -247,7 +247,7 @@ class moe_models_base(nn.Module):
 
                    optimizer_moe.step()
 
-                running_loss += loss.item()
+                running_loss += loss
 
                 with torch.no_grad():
                    outputs = self(inputs)
@@ -291,8 +291,8 @@ class moe_models_base(nn.Module):
                 # update the Y vs E table to compute joint distribution of Y and E
                 if self.task == 'classification':
                     selected_experts = torch.argmax(self.gate_outputs, dim=1)
-                    y = labels.cpu().numpy()
-                    e = selected_experts.cpu().numpy()
+                    y = labels
+                    e = selected_experts
                     #pey = []
                     #p = gate_outputs
                     #p = p.reshape(p.shape[0],p.shape[1], 1)
@@ -312,7 +312,7 @@ class moe_models_base(nn.Module):
             if not scheduler_moe is None: 
                scheduler_moe.step()
  
-            mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey.detach().cpu().numpy())
+            mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey.detach())
 
             with torch.no_grad():
                 acc = 0.0
@@ -335,15 +335,15 @@ class moe_models_base(nn.Module):
                     j += 1
                 #print(confusion_matrix(testloader.dataset[:][1], torch.argmax(test_outputs_all, dim=1)))
                     
-                test_running_accuracy = test_running_accuracy.cpu().numpy()/j
+                test_running_accuracy = test_running_accuracy/j
 
             running_loss = running_loss / num_batches
             running_loss_importance = running_loss_importance / num_batches
             with torch.no_grad():
-                train_running_accuracy = train_running_accuracy.cpu().numpy() / num_batches
-                running_entropy = running_entropy.cpu().numpy() / num_batches
+                train_running_accuracy = train_running_accuracy / num_batches
+                running_entropy = running_entropy / num_batches
                 if not T[epoch] == 1.0:
-                    running_entropy_T = running_entropy_T.cpu().numpy() / num_batches
+                    running_entropy_T = running_entropy_T / num_batches
 
             gate_probabilities = torch.vstack(gate_probabilities)
 
@@ -385,7 +385,7 @@ class moe_models_base(nn.Module):
             history['accuracy'].append(train_running_accuracy)
             history['val_accuracy'].append(test_running_accuracy)
             history['sample_entropy'].append(running_entropy)
-            history['entropy'].append(moe_models.entropy(torch.mean(gate_probabilities, dim=0)).item())
+            history['entropy'].append(moe_models.entropy(torch.mean(gate_probabilities, dim=0)))
             
             if self.task == 'classification':
                 history['EY'].append(ey)
@@ -395,26 +395,26 @@ class moe_models_base(nn.Module):
                 history['H_Y'].append(H_Y)
                 
             with torch.no_grad():
-                history['per_exp_avg_wts'].append(per_exp_avg_wts.cpu().numpy())
-                history['gate_avg_wts'].append(gate_avg_wts.cpu().numpy())
-                history['expert_accuracy'].append((expert_train_running_accuracy/len(trainloader.dataset)).cpu().numpy())
-                history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
-                history['expert_val_accuracy'].append((expert_val_running_accuracy/len(testloader.dataset)).cpu().numpy())
-                history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0).cpu())).cpu().numpy())
-                history['expert_loss'].append((expert_train_running_loss/len(trainloader.dataset)).cpu().numpy())
+                history['per_exp_avg_wts'].append(per_exp_avg_wts)
+                history['gate_avg_wts'].append(gate_avg_wts)
+                history['expert_accuracy'].append((expert_train_running_accuracy/len(trainloader.dataset)))
+                history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0)*len(trainloader.dataset))))
+                history['expert_val_accuracy'].append((expert_val_running_accuracy/len(testloader.dataset)))
+                history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0))))
+                history['expert_loss'].append((expert_train_running_loss/len(trainloader.dataset)))
                 #history['expert_sample_loss'].append((torch.div(expert_sample_train_running_loss,
                 #                                                torch.mean(gate_probabilities, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
                 history['expert_sample_loss'].append((torch.div(expert_sample_train_running_loss,
-                                                                torch.sum(gate_probabilities, dim=0).cpu())).cpu().numpy())
+                                                                torch.sum(gate_probabilities, dim=0))))
 
-                history['per_exp_class_samples'].append(per_exp_class_samples.cpu().numpy()/num_batches)
-                history['exp_samples'].append((torch.mean(gate_probabilities, dim = 0)*len(trainloader.dataset)).cpu().numpy())
-                history['exp_samples_val'].append((torch.mean(test_gate_probabilities, dim = 0)*len(testloader.dataset)).cpu().numpy())
-                history['mean_gate_log_probability'].append(torch.mean(torch.log(gate_probabilities), dim = 0).cpu().numpy())
-                history['var_gate_log_probability'].append(torch.var(torch.log(gate_probabilities), dim = 0).cpu().numpy())
-                history['mean_gate_probability'].append(torch.mean(gate_probabilities, dim = 0).cpu().numpy())
-                history['var_gate_probability'].append(torch.var(gate_probabilities, dim = 0).cpu().numpy())
-                history['kl_div_gate'].append(moe_models.kl_divergence(gate_probabilities.cpu(), torch.mean(gate_probabilities, dim = 0).cpu().repeat(len(gate_probabilities),1)).item())
+                history['per_exp_class_samples'].append(per_exp_class_samples/num_batches)
+                history['exp_samples'].append((torch.mean(gate_probabilities, dim = 0)*len(trainloader.dataset)))
+                history['exp_samples_val'].append((torch.mean(test_gate_probabilities, dim = 0)*len(testloader.dataset)))
+                history['mean_gate_log_probability'].append(torch.mean(torch.log(gate_probabilities), dim = 0))
+                history['var_gate_log_probability'].append(torch.var(torch.log(gate_probabilities), dim = 0))
+                history['mean_gate_probability'].append(torch.mean(gate_probabilities, dim = 0))
+                history['var_gate_probability'].append(torch.var(gate_probabilities, dim = 0))
+                history['kl_div_gate'].append(moe_models.kl_divergence(gate_probabilities, torch.mean(gate_probabilities, dim = 0).repeat(len(gate_probabilities),1)))
                 history['cv'].append(moe_models.cv(gate_probabilities))
                 
             if not T[epoch] == 1.0:
@@ -422,18 +422,18 @@ class moe_models_base(nn.Module):
                 gate_probabilities_all_epochs_T.append(gate_probabilities_high_T)
 
                 history['sample_entropy_T'].append(running_entropy_T)
-                history['entropy_T'].append(moe_models.entropy(torch.mean(gate_probabilities_high_T, dim=0)).item())
+                history['entropy_T'].append(moe_models.entropy(torch.mean(gate_probabilities_high_T, dim=0)))
                 
                 with torch.no_grad():
-                    history['expert_sample_accuracy_T'].append((torch.div(expert_sample_train_running_accuracy_T,torch.mean(gate_probabilities_high_T, dim=0).cpu()*len(trainloader.dataset))).cpu().numpy())
+                    history['expert_sample_accuracy_T'].append((torch.div(expert_sample_train_running_accuracy_T,torch.mean(gate_probabilities_high_T, dim=0)*len(trainloader.dataset))))
                     history['expert_sample_loss_T'].append((torch.div(expert_sample_train_running_loss_T,
-                                                                      torch.mean(gate_probabilities_high_T.cpu(), dim=0)*len(trainloader.dataset))).cpu().numpy())
-                    history['exp_samples_T'].append((torch.mean(gate_probabilities_high_T, dim = 0).cpu()*len(trainloader.dataset)).cpu().numpy())
-                    history['mean_gate_log_probability_T'].append(torch.mean(torch.log(gate_probabilities_high_T), dim = 0).cpu().numpy())
-                    history['var_gate_log_probability_T'].append(torch.var(torch.log(gate_probabilities_high_T), dim = 0).cpu().numpy())
-                    history['mean_gate_probability_T'].append(torch.mean(gate_probabilities_high_T, dim = 0).cpu().numpy())
-                    history['var_gate_probability_T'].append(torch.var(gate_probabilities_high_T, dim = 0).cpu().numpy())
-                    history['kl_div_gate_T'].append(moe_models.kl_divergence(gate_probabilities_high_T, torch.mean(gate_probabilities_high_T, dim = 0).repeat(len(gate_probabilities_high_T),1)).item())
+                                                                      torch.mean(gate_probabilities_high_T, dim=0)*len(trainloader.dataset))))
+                    history['exp_samples_T'].append((torch.mean(gate_probabilities_high_T, dim = 0)*len(trainloader.dataset)))
+                    history['mean_gate_log_probability_T'].append(torch.mean(torch.log(gate_probabilities_high_T), dim = 0))
+                    history['var_gate_log_probability_T'].append(torch.var(torch.log(gate_probabilities_high_T), dim = 0))
+                    history['mean_gate_probability_T'].append(torch.mean(gate_probabilities_high_T, dim = 0))
+                    history['var_gate_probability_T'].append(torch.var(gate_probabilities_high_T, dim = 0))
+                    history['kl_div_gate_T'].append(moe_models.kl_divergence(gate_probabilities_high_T, torch.mean(gate_probabilities_high_T, dim = 0).repeat(len(gate_probabilities_high_T),1)))
                     history['cv_T'].append(moe_models.cv(gate_probabilities_high_T))
             history['Temp'].append(T)
             print('epoch %d' % epoch,
