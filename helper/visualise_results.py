@@ -216,21 +216,22 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
     min_val_error = float('inf')
     best_model = None
     best_model_file = None
-    for T, w_importance in product(temps, w_importance_range):
+    if w_importance_range:
+         for T, w_importance in product(temps, w_importance_range):
         
-        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,
+              plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
-        models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+              models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-        for model in models:
-            for e_key, e_val in model.items():
-                history = model[e_key]['experts'][total_experts]['history']
-                val_error = 1-history['val_accuracy'][-1]
-                if min_val_error > val_error:
-                    min_val_error = val_error
-                    best_model = model
-                    best_model_file = plot_file
+              for model in models:
+                  for e_key, e_val in model.items():
+                      history = model[e_key]['experts'][total_experts]['history']
+                      val_error = 1-history['val_accuracy'][-1]
+                      if min_val_error > val_error:
+                         min_val_error = val_error
+                         best_model = model
+                         best_model_file = plot_file
 
     for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
         
@@ -269,8 +270,6 @@ def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[], w_orth
         history = model[e_key]['experts'][total_experts]['history']
         gate_probabilities = torch.vstack(history['gate_probabilities']).view(num_epochs,-1,total_experts)
 
-        print(len(gate_probabilities), gate_probabilities.shape)
-
         gate_probabilities_sum = torch.sum(gate_probabilities, dim =1).cpu().detach().numpy()        
 
         fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
@@ -288,7 +287,6 @@ def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[], w_orth
         cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
         with torch.no_grad(): 
             for images, labels in test_loader:
-                print(labels)
                 images, labels = images.to(device), labels.to(device)
                 moe_model = e_val['experts'][total_experts]['model']
 
