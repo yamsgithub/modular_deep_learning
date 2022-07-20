@@ -309,8 +309,6 @@ class moe_models_base(nn.Module):
                     #mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey)
 
                 num_batches+=1
-            if not scheduler_moe is None: 
-               scheduler_moe.step()
  
             mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey.detach())
 
@@ -336,6 +334,9 @@ class moe_models_base(nn.Module):
                 #print(confusion_matrix(testloader.dataset[:][1], torch.argmax(test_outputs_all, dim=1)))
                     
                 test_running_accuracy = test_running_accuracy/j
+
+            if not scheduler_moe is None: 
+               scheduler_moe.step()
 
             running_loss = running_loss / num_batches
             running_loss_importance = running_loss_importance / num_batches
