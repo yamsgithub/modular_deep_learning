@@ -368,7 +368,8 @@ def expert_usage_entropy(history, total_experts=5, num_epochs=20):
 
 def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None, 
             model_with_reg=None, model_without_reg=None, model_with_reg_temp=None, 
-            model_with_attention=None, model_with_attn_reg=None, model_dual_temp_with_attention = None, 
+            model_with_attention=None, model_with_attn_reg=None, model_with_attn_sample_sim_reg=None,
+            model_dual_temp_with_attention = None, 
             model_output_reg =None, model_output_imp_reg=None,model_temp_output_reg=None, 
             mnist_attn_output_reg=None, model_sample_sim_reg=None,model_with_exp_reg=None,
             temps=[1.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
@@ -387,6 +388,23 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
     y_sample_hue = []
     y_expert_usage = []
 
+    def collect_data(models, x_label, label):
+        
+        for model in models:
+            for e_key, e_val in model.items():
+                history = model[e_key]['experts'][total_experts]['history']
+                error = 1-torch.vstack(history['accuracy'])
+                val_error = 1-torch.vstack(history['val_accuracy'])
+                y_error.append(error[-1])
+                y_val_error.append(val_error[-1])
+                y_mi.append(history['mutual_EY'][-1])
+                y_H_EY.append(history['H_EY'][-1])
+                y_sample_H.append(history['sample_entropy'][-1])
+                y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+
+                x.append(x_label)
+                hues.append(label)
+        
     w_importance = 0.0
     
     if not model_single is None:
@@ -408,27 +426,18 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
 
         for name, m in model_without_reg.items():
 
+            if name == 'ignore':
+                x_label = 'I 0.0'
+                label = 'MoE'
+            else:
+                x_label = 'I ' + name +' 0.0' 
+                label = 'MoE ' + name
+                
             plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
             model_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-            for model in model_1:
-                for e_key, e_val in model.items():
-                    history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-torch.vstack(history['accuracy'])
-                    val_error = 1-torch.vstack(history['val_accuracy'])
-                    y_error.append(error[-1])
-                    y_val_error.append(val_error[-1])
-                    y_mi.append(history['mutual_EY'][-1])
-                    y_H_EY.append(history['H_EY'][-1])
-                    y_sample_H.append(history['sample_entropy'][-1])
-                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                    if name == 'ignore':
-                        x.append('I 0.0')
-                        hues.append('MoE')
-                    else:
-                        x.append('I ' + name +' 0.0' )
-                        hues.append('MoE ' + name)
+            collect_data(model_1, x_label, label)
 
       
     if not model_with_reg is None:
@@ -436,29 +445,19 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         for name, m in model_with_reg.items():
 
             for w_importance in w_importance_range:
+
+                if name == 'ignore':
+                    x_label = 'I '+"{:.1f}".format(w_importance)
+                    label = 'MoE with regularization'
+                else:
+                    x_label = 'I '+name+" {:.1f}".format(w_importance)
+                    label = 'MoE '+name+' with regularization'
             
                 plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
                 model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-                for model in model_2:
-                    for e_key, e_val in model.items():
-                        history = model[e_key]['experts'][total_experts]['history']
-                        error = 1-torch.vstack(history['accuracy'])
-                        val_error = 1-torch.vstack(history['val_accuracy'])
-                        y_error.append(error[-1])
-                        y_val_error.append(val_error[-1])
-                        y_mi.append(history['mutual_EY'][-1])
-                        y_H_EY.append(history['H_EY'][-1])
-                        y_sample_H.append(history['sample_entropy'][-1])
-                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                        if name == 'ignore':
-                            x.append('I '+"{:.1f}".format(w_importance))
-                            hues.append('MoE with regularization')
-                        else:
-                            x.append('I '+name+" {:.1f}".format(w_importance))
-                            hues.append('MoE '+name+' with regularization')
-                            
+                collect_data(model_2, x_label, label)
 
 
     w_importance = 0.0
@@ -665,28 +664,18 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         
         for name, m in model_with_attention.items():
 
+            if name == 'ignore':
+                x_label = 'Attention'
+                label = 'MoE with attention'
+            else:
+                x_label = 'Attention ' + name 
+                label = 'MoE ' + name + ' with attention'
+
             plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
             model_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-            for model in model_1:
-                for e_key, e_val in model.items():
-                    history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-torch.vstack(history['accuracy'])
-                    val_error = 1-torch.vstack(history['val_accuracy'])
-                    y_error.append(error[-1])
-                    y_val_error.append(val_error[-1])
-                    y_mi.append(history['mutual_EY'][-1])
-                    y_H_EY.append(history['H_EY'][-1])
-                    y_sample_H.append(history['sample_entropy'][-1])
-                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                    
-                    if name == 'ignore':
-                        x.append('Attention')
-                        hues.append('MoE with attention')
-                    else:
-                        x.append('Attention ' + name )
-                        hues.append('MoE ' + name + ' with attention')
+            collect_data(model_1, x_label, label)
 
     if not model_with_exp_reg is None:
         
@@ -719,29 +708,49 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
  
             for w_importance in w_importance_range:
 
+                if name == 'ignore':
+                    x_label = 'Attn + I '+"{:.1f}".format(w_importance)
+                    label = 'MoE with attention and regularization'
+                else:
+                    x_label = 'Attn + I '+name+" {:.1f}".format(w_importance)
+                    label = 'MoE '+name+' with attention and regularization'
+
                 plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
                 model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-                for model in model_2:
-                    for e_key, e_val in model.items():
-                        history = model[e_key]['experts'][total_experts]['history']
-                        error = 1-torch.vstack(history['accuracy'])
-                        val_error = 1-torch.vstack(history['val_accuracy'])
-                        y_error.append(error[-1])
-                        y_val_error.append(val_error[-1])
-                        y_mi.append(history['mutual_EY'][-1])
-                        y_H_EY.append(history['H_EY'][-1])
-                        y_sample_H.append(history['sample_entropy'][-1])
-                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                collect_data(model_2, x_label, label)
+
+    if not model_with_attn_sample_sim_reg is None:
+        
+        for name, m in model_with_attn_sample_sim_reg.items():
                         
-                        if name == 'ignore':
-                            x.append('Attn + I '+"{:.1f}".format(w_importance))
-                            hues.append('MoE with attention and regularization')
-                        else:
-                            x.append('Attn + I '+name+" {:.1f}".format(w_importance))
-                            hues.append('MoE '+name+' with attention and regularization')
-    
+            for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
+
+                w_sample_sim = ''
+                if w_sample_sim_same < 0.1:
+                    w_sample_sim += 'S%.0e' % decimal.Decimal(w_sample_sim_same)
+                else:
+                    w_sample_sim += 'S'+"{:.1f}".format(w_sample_sim_same)
+
+                if w_sample_sim_diff < 0.1:
+                    w_sample_sim += 'D%.0e' % decimal.Decimal(w_sample_sim_diff)
+                else:
+                    w_sample_sim += 'D'+"{:.1f}".format(w_sample_sim_diff)
+
+                if name == 'ignore':
+                    x_label = 'Attn + SS ' + w_sample_sim
+                    label = 'MoE with attention and sample similarity regularization'
+                else:
+                    x_label = 'Attn + SS ' +name +' '+ w_sample_sim
+                    label = 'MoE '+name+' with attention and sample similarity regularization'
+
+                plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,
+                                               specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+                model_2 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+
+                collect_data(model_2, x_label, label)
     
     if not  model_dual_temp_with_attention is None:
 
