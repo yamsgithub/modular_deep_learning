@@ -213,9 +213,12 @@ def generate_plot_file(dataset, temp=1.0, w_importance=0.0, w_ortho=0.0, w_sampl
 
 def find_best_model(m, temps=[1.0], w_importance_range=[], 
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
-                    total_experts=5, num_classes=10, model_path=None):
+                    total_experts=5, num_classes=10, num_epochs=20, model_path=None):
 
     min_val_error = float('inf')
+    mutual_info = 0.0
+    sample_entropy = 0.0
+    expert_usage = 0.0
     best_model = None
     best_model_file = None
     if w_importance_range:
@@ -232,6 +235,9 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
                       val_error = 1-history['val_accuracy'][-1]
                       if min_val_error > val_error:
                          min_val_error = val_error
+                         mutual_info = history['mutual_EY'][-1]
+                         sample_entropy = history['sample_entropy'][-1]
+                         expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
                          best_model = model
                          best_model_file = plot_file
 
@@ -246,12 +252,19 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
             for e_key, e_val in model.items():
                 history = model[e_key]['experts'][total_experts]['history']
                 val_error = 1-history['val_accuracy'][-1]
+                
                 if min_val_error > val_error:
                     min_val_error = val_error
+                    mutual_info = history['mutual_EY'][-1]
+                    sample_entropy = history['sample_entropy'][-1]
+                    expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
                     best_model = model
                     best_model_file = plot_file
 
-    print('Min Validation Error','{:.3f}'.format(min_val_error))                
+    print('Min Validation Error','{:.3f}'.format(min_val_error))
+    print('Mutual Information', '{:.3f}'.format(mutual_info))
+    print('Sample Entropy', '{:.3f}'.format(sample_entropy))
+    print('Expert Usage', '{:.3f}'.format(expert_usage))
     return best_model, best_model_file
 
 
@@ -265,7 +278,7 @@ def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[], w_orth
 
     model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
                                    w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
-                                        num_classes=num_classes, total_experts=total_experts, model_path=model_path)
+                                        num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path)
     print(model_file)
 
     for e_key, e_val in model.items():
@@ -1302,7 +1315,7 @@ def plot_expert_predictions(m, test_loader, temps=[1.0], w_importance_range = [0
 
     model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
                                         w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
-                                        num_classes=num_classes, total_experts=total_experts, model_path=model_path)
+                                        num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path)
     print(model_file)
 
 
