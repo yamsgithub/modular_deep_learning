@@ -426,15 +426,14 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
         plot_file = generate_plot_file(m, specific=str(num_classes)+'_models.pt')
 
         model_0 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
-
         for history in model_0['history']:
-            error = [e.item() for e in 1-torch.vstack(history['accuracy'])]
-            val_error = [e.item() for e in 1-torch.vstack(history['val_accuracy'])]
-            y_error.append(error[-1])
-            y_val_error.append(val_error[-1])
-            x.append('SM')
-            hues.append('Single Model')
-    
+             error = 1-torch.tensor(history['accuracy']).to(device)
+             val_error = 1-torch.tensor(history['val_accuracy']).to(device)
+             y_error.append(error[-1])
+             y_val_error.append(val_error[-1])
+             x.append('SM')
+             hues.append('Single Model')
+
     if not model_without_reg is None:
 
         for name, m in model_without_reg.items():
