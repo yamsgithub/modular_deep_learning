@@ -215,7 +215,7 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
                     total_experts=5, num_classes=10, num_epochs=20, model_path=None):
 
-    min_val_error = float('inf')
+    min_train_error = float('inf')
     mutual_info = 0.0
     sample_entropy = 0.0
     expert_usage = 0.0
@@ -233,8 +233,9 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
                   for e_key, e_val in model.items():
                       history = model[e_key]['experts'][total_experts]['history']
                       val_error = 1-history['val_accuracy'][-1]
-                      if min_val_error > val_error:
-                         min_val_error = val_error
+                      train_error = 1-history['accuracy'][-1]
+                      if min_train_error > train_error:
+                         min_train_error = train_error
                          mutual_info = history['mutual_EY'][-1]
                          sample_entropy = history['sample_entropy'][-1]
                          expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
@@ -251,17 +252,17 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
         for model in models:
             for e_key, e_val in model.items():
                 history = model[e_key]['experts'][total_experts]['history']
-                val_error = 1-history['val_accuracy'][-1]
+                train_error = 1-history['accuracy'][-1]
                 
-                if min_val_error > val_error:
-                    min_val_error = val_error
+                if min_train_error > train_error:
+                    min_train_error = train_error
                     mutual_info = history['mutual_EY'][-1]
                     sample_entropy = history['sample_entropy'][-1]
                     expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
                     best_model = model
                     best_model_file = plot_file
 
-    print('Min Validation Error','{:.3f}'.format(min_val_error))
+    print('Min Training Error','{:.3f}'.format(min_train_error))
     print('Mutual Information', '{:.3f}'.format(mutual_info))
     print('Sample Entropy', '{:.3f}'.format(sample_entropy))
     print('Expert Usage', '{:.3f}'.format(expert_usage))
