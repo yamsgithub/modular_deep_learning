@@ -139,28 +139,21 @@ class moe_models_base(nn.Module):
                 num_params += 1
             gate_avg_wts = gate_avg_wts/num_params
 
-            all_labels = None 
+            all_labels = []
             
             for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 
-                if all_labels is None:
-                   all_labels = labels
-                else:
-                   all_labels = torch.cat((all_labels,labels))
+                all_labels.append(labels)
 
                 if model_name == 'moe_no_gate_model':
                     outputs = self(inputs, no_gate_T[epoch])
                 else:
-                    #with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
-                    #     with record_function("model_inference"):
                     outputs = self(inputs)
-                #print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=100))
     
                 gate_outputs = self.gate_outputs
                 expert_outputs = self.expert_outputs
-
 
                 expert_outputs_epoch.append(expert_outputs)
                 gate_probabilities.append(gate_outputs)
@@ -169,19 +162,16 @@ class moe_models_base(nn.Module):
 
                 regularization = 0.0
 
-                if w_exp_gamma > 0.0:
-                   regularization += torch.sum(torch.exp(w_exp_gamma * torch.sum(gate_outputs, dim=0)))
-
                 if w_sample_sim_same > 0.0 or w_sample_sim_diff > 0.0:
 
-                   B = len(inputs) # batch size
-                   imgs = inputs.view(B,-1)
+                   batch_size = len(inputs) # batch size
+                   imgs = inputs.view(batch_size,-1)
 
                    dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
                    sample_dist = 0
                    
-                   pex_dist_same = torch.zeros(B, B).to(device)
-                   pex_dist_diff = torch.zeros(B, B).to(device)
+                   pex_dist_same = torch.zeros(batch_size, batch_size).to(device)
+                   pex_dist_diff = torch.zeros(batch_size, batch_size).to(device)
 
                    for i in range(self.num_experts):
                        pe_i = gate_outputs[:,i].view(-1, 1)
@@ -209,18 +199,6 @@ class moe_models_base(nn.Module):
                    p = p.repeat(1,1,self.num_classes)
                    regularization += moe_models.loss_importance(torch.sum(p*y, dim=1), w_ortho)
 
-                        # for i in range(0, self.expert_outputs.shape[1]-1):
-                        #     for j in range(i+1, self.expert_outputs.shape[1]):
-                        #         if l_ortho is None:
-                        #             l_ortho = torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
-                        #                                    torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1)))
-                        #         else:
-                        #             l_ortho = torch.add(l_ortho, torch.abs(torch.matmul(self.expert_outputs[:,i,:].squeeze(1),
-                        #                                                                 torch.transpose(self.expert_outputs[:,j,:].squeeze(1), 0, 1))))
-                        #if not l_ortho is None:
-                        #    loss += w_ortho * l_ortho.mean()
-
- 
                 if w_ideal_gate > 0.0 and self.num_experts > 1:
                         l_experts = []
                         for i in range(self.num_experts):
@@ -359,34 +337,34 @@ class moe_models_base(nn.Module):
             if model_name == 'moe_no_gate_model':
                 sample_entropies = torch.vstack(sample_entropies)
             
-            baseline_losses = []
-            if self.task == 'classification':
-                #loss baseline with avg gate prob
-                l = all_labels
-                y = torch.vstack(expert_outputs_epoch)
+            # baseline_losses = []
+            # if self.task == 'classification':
+            #     #loss baseline with avg gate prob
+            #     l = all_labels
+            #     y = torch.vstack(expert_outputs_epoch)
 
-                p = torch.mean(gate_probabilities, dim=0)
-                p = p.reshape(1, p.shape[0], 1)
-                p = p.repeat(y.shape[0],1,y.shape[2])
-                # expected sum of expert outputs
-                output = torch.sum(p*y, 1)
-                if model_name == 'moe_expectation_model':
-                    baseline_losses.append(loss_criterion(output, None,None,l))
-                elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
-                    baseline_losses.append(loss_criterion.loss_criterion(output,None, None, l))                    
+            #     p = torch.mean(gate_probabilities, dim=0)
+            #     p = p.reshape(1, p.shape[0], 1)
+            #     p = p.repeat(y.shape[0],1,y.shape[2])
+            #     # expected sum of expert outputs
+            #     output = torch.sum(p*y, 1)
+            #     if model_name == 'moe_expectation_model':
+            #         baseline_losses.append(loss_criterion(output, None,None,l))
+            #     elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
+            #         baseline_losses.append(loss_criterion.loss_criterion(output,None, None, l))                    
                     
                 
-                base_class_freq = torch.unique(l,return_counts=True)[1]/float(l.shape[0])
-                y = base_class_freq.repeat(y.shape[0]*self.num_experts).reshape(y.shape)
-                p = gate_probabilities
-                p = p.reshape(p.shape[0],p.shape[1], 1)
-                p = p.repeat(1,1,y.shape[2])
-                output = torch.sum(p*y, 1)
-                if model_name == 'moe_expectation_model':
-                    baseline_losses.append(loss_criterion(output,None, None, l))
-                elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
-                    baseline_losses.append(loss_criterion.loss_criterion(output,None,None, l))
-                history['baseline_losses'].append(baseline_losses)
+            #     base_class_freq = torch.unique(l,return_counts=True)[1]/float(l.shape[0])
+            #     y = base_class_freq.repeat(y.shape[0]*self.num_experts).reshape(y.shape)
+            #     p = gate_probabilities
+            #     p = p.reshape(p.shape[0],p.shape[1], 1)
+            #     p = p.repeat(1,1,y.shape[2])
+            #     output = torch.sum(p*y, 1)
+            #     if model_name == 'moe_expectation_model':
+            #         baseline_losses.append(loss_criterion(output,None, None, l))
+            #     elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
+            #         baseline_losses.append(loss_criterion.loss_criterion(output,None,None, l))
+            #     history['baseline_losses'].append(baseline_losses)
 
             history['loss'].append(running_loss)
             history['loss_importance'].append(running_loss_importance)            
