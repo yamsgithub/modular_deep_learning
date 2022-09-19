@@ -186,12 +186,14 @@ def plot_accuracy_by_experts(models, total_experts, save_as):
         plt.close()
 
 
-def generate_plot_file(dataset, temp=1.0, w_importance=0.0, w_ortho=0.0, w_sample_sim_same=0.0, w_sample_sim_diff=0.0, w_exp_gamma=0.0, specific=''):
+def generate_plot_file(dataset, temp=1.0, no_gate_T=1.0, w_importance=0.0, w_ortho=0.0, w_sample_sim_same=0.0, w_sample_sim_diff=0.0, w_exp_gamma=0.0, specific=''):
     plot_file = dataset
     if w_importance > 0:
         plot_file += '_importance_'+'{:.1f}'.format(w_importance)
     if not temp == 1.0:
         plot_file += '_temp_'+'{:.1f}'.format(temp)
+    if not no_gate_T == 1.0:
+        plot_file += '_moe_temp_'+'{:.2f}'.format(no_gate_T)
     if w_ortho > 0:
         plot_file += '_ortho_'+'{:.1f}'.format(w_ortho)
     if w_sample_sim_same > 0:
@@ -211,7 +213,7 @@ def generate_plot_file(dataset, temp=1.0, w_importance=0.0, w_ortho=0.0, w_sampl
     return plot_file
 
 
-def find_best_model(m, temps=[1.0], w_importance_range=[], 
+def find_best_model(m, temps=[[1.0]*20], w_importance_range=[], no_gate_temps=[[1.0]*20], 
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
                     total_experts=5, num_classes=10, num_epochs=20, model_path=None):
 
@@ -222,9 +224,9 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
     best_model = None
     best_model_file = None
     if w_importance_range:
-         for T, w_importance in product(temps, w_importance_range):
+         for T, no_gate_temp, w_importance in product(temps, no_gate_temps, w_importance_range):
         
-              plot_file = generate_plot_file(m, temp=T, w_importance=w_importance,
+              plot_file = generate_plot_file(m, temp=T[0], no_gate_T=no_gate_temp[0], w_importance=w_importance,
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
               models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
@@ -242,9 +244,9 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
                          best_model = model
                          best_model_file = plot_file
 
-    for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
+    for no_gate_temp, w_sample_sim_same, w_sample_sim_diff in product(no_gate_temps, w_sample_sim_same_range, w_sample_sim_diff_range):
         
-        plot_file = generate_plot_file(m, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,                                
+        plot_file = generate_plot_file(m, no_gate_temp, w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff,                                
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
         models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
@@ -270,14 +272,14 @@ def find_best_model(m, temps=[1.0], w_importance_range=[],
 
 
 
-def plot_expert_usage(m, test_loader, temps=[1.0], w_importance_range=[], w_ortho_range=[0.0], 
+def plot_expert_usage(m, test_loader, temps=[[1.0]*20],no_gate_temps=[[1.0]*20], w_importance_range=[], w_ortho_range=[0.0], 
                       w_sample_sim_same_range=[], w_sample_sim_diff_range=[], total_experts=5, num_classes=10, 
                       classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None):
     
     fontsize = 15
     fontsize_label = 12
 
-    model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
+    model, model_file = find_best_model(m, temps=temps, no_gate_temps=no_gate_temps, w_importance_range=w_importance_range,
                                    w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
                                         num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path)
     print(model_file)
