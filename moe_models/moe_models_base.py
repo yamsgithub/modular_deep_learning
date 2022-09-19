@@ -68,7 +68,7 @@ class moe_models_base(nn.Module):
               loss_criterion, optimizer_moe, scheduler_moe=None, optimizer_gate=None, optimizer_experts=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
               w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
-              T=[1.0]*10, T_decay=0.0, T_decay_start=0, no_gate_T = 1.0,
+              T=[1.0]*20, T_decay=0.0, T_decay_start=0, no_gate_T = [1.0]*20,
               accuracy=None, epochs=10, model_name='moe_expectation_model'):
 
         history = {'loss':[], 'loss_importance':[], 'baseline_losses':[],
@@ -86,10 +86,11 @@ class moe_models_base(nn.Module):
                    'kl_div_gate':[], 'kl_div_gate_T':[],
                    'per_exp_avg_wts':[], 'gate_avg_wts':[], 'Temp':[],
                    'w_importance':w_importance, 'w_ortho':w_ortho, 'w_ideal_gate':w_ideal_gate,
-                   'cv':[], 'cv_T':[], 'gate_probabilities':[],'gate_probabilities_T':[] }
+                   'cv':[], 'cv_T':[], 'gate_probabilities':[],'gate_probabilities_T':[], 'per_sample_entropy':[] }
         
         gate_probabilities_all_epochs = []
         gate_probabilities_all_epochs_T = []
+        
         for epoch in range(epochs):  # loop over the dataset multiple times
             num_batches = 0
             running_loss = 0.0
@@ -119,7 +120,9 @@ class moe_models_base(nn.Module):
 
             gate_probabilities = []
 
-            expert_outputs_epoch = [] 
+            expert_outputs_epoch = []
+
+            sample_entropies = []
 
             per_exp_avg_wts = torch.zeros(self.num_experts)
             for i in range(0, self.num_experts):
@@ -148,7 +151,7 @@ class moe_models_base(nn.Module):
                    all_labels = torch.cat((all_labels,labels))
 
                 if model_name == 'moe_no_gate_model':
-                    outputs = self(inputs, no_gate_T)
+                    outputs = self(inputs, no_gate_T[epoch])
                 else:
                     #with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_shapes=True) as prof:
                     #     with record_function("model_inference"):
@@ -158,8 +161,11 @@ class moe_models_base(nn.Module):
                 gate_outputs = self.gate_outputs
                 expert_outputs = self.expert_outputs
 
+
                 expert_outputs_epoch.append(expert_outputs)
                 gate_probabilities.append(gate_outputs)
+                if model_name == 'moe_no_gate_model':
+                    sample_entropies.append(self.per_sample_entropy)
 
                 regularization = 0.0
 
@@ -282,8 +288,6 @@ class moe_models_base(nn.Module):
                         
                         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
                         expert_sample_train_running_loss_T[index] =  expert_sample_train_running_loss_T[index] + e_sample_loss
-
-
                         
                 #computing entropy
                 running_entropy += moe_models.entropy(self.gate_outputs)
@@ -351,6 +355,9 @@ class moe_models_base(nn.Module):
             gate_probabilities_all_epochs.append(gate_probabilities)
 
             test_gate_probabilities = torch.vstack(test_gate_probabilities)
+
+            if model_name == 'moe_no_gate_model':
+                sample_entropies = torch.vstack(sample_entropies)
             
             baseline_losses = []
             if self.task == 'classification':
@@ -387,7 +394,9 @@ class moe_models_base(nn.Module):
             history['val_accuracy'].append(test_running_accuracy)
             history['sample_entropy'].append(running_entropy)
             history['entropy'].append(moe_models.entropy(torch.mean(gate_probabilities, dim=0)))
-            
+            if model_name == 'moe_no_gate_model':
+                history['per_sample_entropy'].append(sample_entropies)
+                
             if self.task == 'classification':
                 history['EY'].append(ey)
                 history['mutual_EY'].append(mutual_EY)
