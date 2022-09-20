@@ -165,27 +165,33 @@ class moe_models_base(nn.Module):
                 if w_sample_sim_same > 0.0 or w_sample_sim_diff > 0.0:
 
                    batch_size = len(inputs) # batch size
-                   imgs = inputs.view(batch_size,-1)
-
+                   # sum up the channels to make the images 2D
+                   imgs = inputs.sum(dim=1).view(batch_size,-1)
+                   #print('imgs', imgs.shape, inputs.sum(dim=1).shape)
                    dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
+                   # normalize
+                   dist = dist/torch.max(dist)
+                   #print('dist', dist.shape)
                    sample_dist = 0
                    
                    pex_dist_same = torch.zeros(batch_size, batch_size).to(device)
                    pex_dist_diff = torch.zeros(batch_size, batch_size).to(device)
-
+                   #print('gate outputs', gate_outputs.shape)
                    for i in range(self.num_experts):
                        pe_i = gate_outputs[:,i].view(-1, 1)
+                       #print('pe_i', pe_i.shape)
                        for j in range(self.num_experts):
                            pe_j = gate_outputs[:,j].view(1, -1)
+                           #print('pe_j', pe_j.shape)
                            pex_j = torch.mul(pe_i, pe_j)
-                           #print('pex_j',j,pex_j)
+                           #print('pex_j',pex_j.shape)
                            pex_j_dist = torch.mul(pex_j, dist)
                            if i == j:
                               pex_dist_same = pex_dist_same + (pex_j_dist/self.num_experts)
                            else:
                               pex_dist_diff = pex_dist_diff + (pex_j_dist/(self.num_experts**2-self.num_experts))
 
-                   regularization += ((w_sample_sim_same * torch.sum(pex_dist_same)) - (w_sample_sim_diff * torch.sum(pex_dist_diff))/(B**2))
+                   regularization += ((w_sample_sim_same * torch.sum(pex_dist_same)) - (w_sample_sim_diff * torch.sum(pex_dist_diff))/(batch_size**2))
 
                 if w_importance > 0.0:
                    l_imp = moe_models.loss_importance(gate_outputs, w_importance)
@@ -239,33 +245,33 @@ class moe_models_base(nn.Module):
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
 
-                for index in range(0, self.num_experts):
-                    acc = accuracy(self.expert_outputs[:,index,:], labels, False)
-                    exp_sample_acc =  torch.sum(gate_outputs[:, index].flatten()*acc)
-                    expert_train_running_accuracy[index] = expert_train_running_accuracy[index] + torch.sum(acc)
-                    expert_sample_train_running_accuracy[index] = expert_sample_train_running_accuracy[index] + exp_sample_acc
+                # for index in range(0, self.num_experts):
+                #     acc = accuracy(self.expert_outputs[:,index,:], labels, False)
+                #     exp_sample_acc =  torch.sum(gate_outputs[:, index].flatten()*acc)
+                #     expert_train_running_accuracy[index] = expert_train_running_accuracy[index] + torch.sum(acc)
+                #     expert_sample_train_running_accuracy[index] = expert_sample_train_running_accuracy[index] + exp_sample_acc
 
-                    if model_name == 'moe_expectation_model':
-                        loss_criterion.reduction('none')
-                        e_loss = loss_criterion(expert_outputs[:,index,:], None, None, labels)
-                        loss_criterion.reduction(loss_criterion.default_reduction)
-                    elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
-                        e_loss = loss_criterion.loss_criterion(expert_outputs[:,index,:], None, None, labels)
+                #     if model_name == 'moe_expectation_model':
+                #         loss_criterion.reduction('none')
+                #         e_loss = loss_criterion(expert_outputs[:,index,:], None, None, labels)
+                #         loss_criterion.reduction(loss_criterion.default_reduction)
+                #     elif model_name == 'moe_stochastic_model' or model_name == 'moe_no_gate_model':
+                #         e_loss = loss_criterion.loss_criterion(expert_outputs[:,index,:], None, None, labels)
                     
-                    e_sample_loss = torch.sum(torch.matmul(gate_outputs[:, index].flatten(), e_loss))
-                    expert_train_running_loss[index] =  expert_train_running_loss[index] + torch.sum(e_loss)
-                    expert_sample_train_running_loss[index] = expert_sample_train_running_loss[index] + e_sample_loss
+                #     e_sample_loss = torch.sum(torch.matmul(gate_outputs[:, index].flatten(), e_loss))
+                #     expert_train_running_loss[index] =  expert_train_running_loss[index] + torch.sum(e_loss)
+                #     expert_sample_train_running_loss[index] = expert_sample_train_running_loss[index] + e_sample_loss
                     
-                    for label in range(0, self.num_classes):
-                        index_l = torch.where(labels==label)[0]
-                        per_exp_class_samples[index][label] = per_exp_class_samples[index][label] + (torch.mean(gate_outputs[index_l, index]))*len(index_l)
+                #     for label in range(0, self.num_classes):
+                #         index_l = torch.where(labels==label)[0]
+                #         per_exp_class_samples[index][label] = per_exp_class_samples[index][label] + (torch.mean(gate_outputs[index_l, index]))*len(index_l)
                         
-                    if not T[epoch] == 1.0:
-                        exp_sample_acc =  torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*acc)
-                        expert_sample_train_running_accuracy_T[index] = expert_sample_train_running_accuracy_T[index] + exp_sample_acc
+                #     if not T[epoch] == 1.0:
+                #         exp_sample_acc =  torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*acc)
+                #         expert_sample_train_running_accuracy_T[index] = expert_sample_train_running_accuracy_T[index] + exp_sample_acc
                         
-                        e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
-                        expert_sample_train_running_loss_T[index] =  expert_sample_train_running_loss_T[index] + e_sample_loss
+                #         e_sample_loss = torch.sum(gate_probabilities_batch_high_T[:, index].flatten()*e_loss)
+                #         expert_sample_train_running_loss_T[index] =  expert_sample_train_running_loss_T[index] + e_sample_loss
                         
                 #computing entropy
                 running_entropy += moe_models.entropy(self.gate_outputs)
@@ -275,20 +281,8 @@ class moe_models_base(nn.Module):
                     selected_experts = torch.argmax(self.gate_outputs, dim=1)
                     y = labels
                     e = selected_experts
-                    #pey = []
-                    #p = gate_outputs
-                    #p = p.reshape(p.shape[0],p.shape[1], 1)
-                    #p = p.repeat(1,1,self.num_classes)
-
-                    #for i in range(0, self.num_experts):
-                        #pey.append(torch.sum(p[:,i,:]*expert_outputs[:,i,:], dim=0).squeeze())
-                    #pey = torch.vstack(pey)
-                    #pey = torch.transpose(pey,0,1)
-                    #ey = ey + pey
                     for j in range(y.shape[0]):
                         ey[int(torch.argmax(expert_outputs[j,e[j],:])), int(e[j])] += 1
-
-                    #mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey)
 
                 num_batches+=1
  
@@ -306,14 +300,13 @@ class moe_models_base(nn.Module):
                     test_gate_probabilities.append(test_gate_outputs)
                     test_running_accuracy += accuracy(test_outputs, test_labels)
 
-                    for index in range(0, self.num_experts):
-                        acc = accuracy(test_expert_outputs[:,index,:], test_labels, False)
-                        expert_val_running_accuracy[index] = expert_val_running_accuracy[index] + torch.sum(acc)
-                        exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
-                        expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index] + exp_sample_acc
+                    # for index in range(0, self.num_experts):
+                    #     acc = accuracy(test_expert_outputs[:,index,:], test_labels, False)
+                    #     expert_val_running_accuracy[index] = expert_val_running_accuracy[index] + torch.sum(acc)
+                    #     exp_sample_acc =  torch.sum(test_gate_outputs[:, index].flatten()*acc)
+                    #     expert_sample_val_running_accuracy[index] = expert_sample_val_running_accuracy[index] + exp_sample_acc
 
                     j += 1
-                #print(confusion_matrix(testloader.dataset[:][1], torch.argmax(test_outputs_all, dim=1)))
                     
                 test_running_accuracy = test_running_accuracy/j
 
@@ -386,7 +379,7 @@ class moe_models_base(nn.Module):
                 history['per_exp_avg_wts'].append(per_exp_avg_wts)
                 history['gate_avg_wts'].append(gate_avg_wts)
                 history['expert_accuracy'].append((expert_train_running_accuracy/len(trainloader.dataset)))
-                history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0)*len(trainloader.dataset))))
+                #history['expert_sample_accuracy'].append((torch.div(expert_sample_train_running_accuracy,torch.mean(gate_probabilities, dim=0)*len(trainloader.dataset))))
                 history['expert_val_accuracy'].append((expert_val_running_accuracy/len(testloader.dataset)))
                 history['expert_sample_val_accuracy'].append((torch.div(expert_sample_val_running_accuracy,torch.sum(test_gate_probabilities, dim=0))))
                 history['expert_loss'].append((expert_train_running_loss/len(trainloader.dataset)))
