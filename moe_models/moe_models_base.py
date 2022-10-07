@@ -166,35 +166,31 @@ class moe_models_base(nn.Module):
 
                    batch_size = len(inputs) # batch size
                    # sum up the channels to make the images 2D
-                   imgs = inputs.sum(dim=1).view(batch_size,-1)
-                   #print('imgs', imgs.shape, inputs.sum(dim=1).shape)
+                   imgs = inputs.view(batch_size,-1)
                    dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
                    # normalize
                    dist = dist/torch.max(dist)
-                   #print('dist', dist.shape)
                    sample_dist = 0
                    
                    pex_dist_same = torch.zeros(batch_size, batch_size).to(device)
                    pex_dist_diff = torch.zeros(batch_size, batch_size).to(device)
-                   #print('gate outputs', gate_outputs.shape)
                    for i in range(self.num_experts):
                        pe_i = gate_outputs[:,i].view(-1, 1)
-                       #print('pe_i', pe_i.shape)
                        for j in range(self.num_experts):
                            pe_j = gate_outputs[:,j].view(1, -1)
-                           #print('pe_j', pe_j.shape)
                            pex_j = torch.mul(pe_i, pe_j)
-                           #print('pex_j',pex_j.shape)
                            pex_j_dist = torch.mul(pex_j, dist)
                            if i == j:
                               pex_dist_same = pex_dist_same + (pex_j_dist/self.num_experts)
                            else:
                               pex_dist_diff = pex_dist_diff + (pex_j_dist/(self.num_experts**2-self.num_experts))
-
-                   regularization += ((w_sample_sim_same * torch.sum(pex_dist_same)) - (w_sample_sim_diff * torch.sum(pex_dist_diff))/(batch_size**2))
+                   
+                   reg_similarity = ((w_sample_sim_same * torch.sum(pex_dist_same)) - (w_sample_sim_diff * torch.sum(pex_dist_diff))/(batch_size**2))
+                   regularization += reg_similarity
 
                 if w_importance > 0.0:
                    l_imp = moe_models.loss_importance(gate_outputs, w_importance)
+#                    print('l_imp_reg', l_imp)
                    running_loss_importance += l_imp
                    regularization += l_imp
 
