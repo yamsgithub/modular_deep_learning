@@ -8,13 +8,6 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 from helper import moe_models
 
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
-
 def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs, T, optimizer_gate, optimizer_experts, loss_criterion, regularization=0.0):
     outputs_with_T = model(inputs, T)
     expert_outputs_T = model.expert_outputs
@@ -50,7 +43,7 @@ def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs,
 # based on the gate probabilities
 class moe_models_base(nn.Module):
     
-    def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, experts=None, gate=None, task='classification'):
+    def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, experts=None, gate=None, task='classification', device = torch.device("cpu")):
         super(moe_models_base,self).__init__()
         self.num_experts = num_experts
         self.num_classes = num_classes
@@ -63,7 +56,13 @@ class moe_models_base(nn.Module):
         if self.attention:
             self.attn = moe_models.attention(hidden)
         self.task = task
-    
+        self.device = device
+        
+    # For updating learning rate
+    def update_lr(self, optimizer, lr):
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
+
     def train(self, trainloader, testloader,
               loss_criterion, optimizer_moe, scheduler_moe=None, optimizer_gate=None, optimizer_experts=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
@@ -90,7 +89,7 @@ class moe_models_base(nn.Module):
         
         gate_probabilities_all_epochs = []
         gate_probabilities_all_epochs_T = []
-        
+        curr_lr = 0.001
         for epoch in range(epochs):  # loop over the dataset multiple times
             num_batches = 0
             running_loss = 0.0
@@ -98,17 +97,17 @@ class moe_models_base(nn.Module):
             train_running_accuracy = 0.0 
             test_running_accuracy = 0.0
 
-            expert_train_running_accuracy = torch.zeros(self.num_experts, device=device)
-            expert_val_running_accuracy = torch.zeros(self.num_experts, device=device)
-            expert_sample_train_running_accuracy = torch.zeros(self.num_experts, device=device)
-            expert_sample_val_running_accuracy = torch.zeros(self.num_experts, device=device)
-            expert_sample_train_running_accuracy_T = torch.zeros(self.num_experts, device=device)
+            expert_train_running_accuracy = torch.zeros(self.num_experts, device=self.device)
+            expert_val_running_accuracy = torch.zeros(self.num_experts, device=self.device)
+            expert_sample_train_running_accuracy = torch.zeros(self.num_experts, device=self.device)
+            expert_sample_val_running_accuracy = torch.zeros(self.num_experts, device=self.device)
+            expert_sample_train_running_accuracy_T = torch.zeros(self.num_experts, device=self.device)
 
-            expert_train_running_loss = torch.zeros(self.num_experts, device=device)
-            expert_sample_train_running_loss = torch.zeros(self.num_experts, device=device)
-            expert_sample_train_running_loss_T = torch.zeros(self.num_experts, device=device)
+            expert_train_running_loss = torch.zeros(self.num_experts, device=self.device)
+            expert_sample_train_running_loss = torch.zeros(self.num_experts, device=self.device)
+            expert_sample_train_running_loss_T = torch.zeros(self.num_experts, device=self.device)
 
-            per_exp_class_samples = torch.zeros(self.num_experts, self.num_classes, device=device)
+            per_exp_class_samples = torch.zeros(self.num_experts, self.num_classes, device=self.device)
             
             running_entropy = 0.0
 
@@ -116,7 +115,7 @@ class moe_models_base(nn.Module):
                running_entropy_T = 0.0
                gate_probabilities_high_T = []
 
-            ey =  torch.zeros((self.num_classes, self.num_experts)).to(device)
+            ey =  torch.zeros((self.num_classes, self.num_experts)).to(self.device)
 
             gate_probabilities = []
 
@@ -143,7 +142,7 @@ class moe_models_base(nn.Module):
             
             for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+                inputs, labels = inputs.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 
                 all_labels.append(labels)
 
@@ -172,8 +171,8 @@ class moe_models_base(nn.Module):
                    dist = dist/torch.max(dist)
                    sample_dist = 0
                    
-                   pex_dist_same = torch.zeros(batch_size, batch_size).to(device)
-                   pex_dist_diff = torch.zeros(batch_size, batch_size).to(device)
+                   pex_dist_same = torch.zeros(batch_size, batch_size).to(self.device)
+                   pex_dist_diff = torch.zeros(batch_size, batch_size).to(self.device)
                    for i in range(self.num_experts):
                        pe_i = gate_outputs[:,i].view(-1, 1)
                        for j in range(self.num_experts):
@@ -289,7 +288,7 @@ class moe_models_base(nn.Module):
                 j = 0
                 test_gate_probabilities = []
                 for test_inputs, test_labels in testloader:
-               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+               	    test_inputs, test_labels = test_inputs.to(self.device, non_blocking=True), test_labels.to(self.device, non_blocking=True)                
                     test_outputs = self(test_inputs)
                     test_gate_outputs = self.gate_outputs
                     test_expert_outputs = self.expert_outputs
@@ -417,7 +416,10 @@ class moe_models_base(nn.Module):
                   'training loss %.2f' % running_loss,
                   ', training accuracy %.2f' % train_running_accuracy,
                   ', test accuracy %.2f' % test_running_accuracy)
-            
+            if (epoch+1) % 20 == 0:
+                curr_lr /= 3
+                self.update_lr(optimizer_moe, curr_lr)
+                
             if epoch > T_decay_start and T_decay > 0:
                 print('t decay', type(T_decay),T_decay, epoch)
                 T *= (1. / (1. + T_decay * epoch))
@@ -496,7 +498,7 @@ class moe_models_base(nn.Module):
             num_batches = 0
             for inputs, labels in trainloader:
                 # get the inputs; data is a list of [inputs, labels]
-                inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+                inputs, labels = inputs.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
 
                 if all_labels is None:
                    all_labels = labels
@@ -538,7 +540,7 @@ class moe_models_base(nn.Module):
                 j = 0
                 test_gate_probabilities = []
                 for test_inputs, test_labels in testloader:
-               	    test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
+               	    test_inputs, test_labels = test_inputs.to(self.device, non_blocking=True), test_labels.to(self.device, non_blocking=True)                
                     test_outputs = self(test_inputs)
                     test_gate_outputs = self.gate_outputs
                     test_expert_outputs = self.expert_outputs
