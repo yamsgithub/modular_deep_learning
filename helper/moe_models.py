@@ -4,14 +4,6 @@ import torch.nn.functional as F
 
 import numpy as np
 
-
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
-
 def kl_divergence(p, q):
     return torch.mean(torch.sum(p*torch.log(torch.div(p,q)), dim=1))
 
@@ -19,20 +11,20 @@ class cross_entropy_loss(nn.Module):
     def __init__(self, reduction='mean'):
         super(cross_entropy_loss, self).__init__()
         self.default_reduction = 'mean'
-        self.criterion = nn.NLLLoss(reduction=reduction).to(device)
-
+        self.criterion = nn.NLLLoss(reduction=reduction)
+        
     def reduction(self, r='mean'):
         self.criterion.reduction = r
         
     def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, targets=None):
         eps=1e-7
-        logp = torch.log(outputs+eps).to(device)
+        logp = torch.log(outputs+eps)
         crossentropy_loss = self.criterion(logp, targets)
         return crossentropy_loss
 
 class stochastic_loss(nn.Module):
 
-    def __init__(self, loss_criterion):
+    def __init__(self, loss_criterion, ):
         super(stochastic_loss, self).__init__()
         self.default_reduction = 'none'
         self.loss_criterion = loss_criterion(reduction='none')
@@ -52,14 +44,14 @@ class stochastic_loss(nn.Module):
         expert_loss.transpose_(0,1)
         expected_loss = -1*torch.log(torch.sum(gate_outputs * expert_loss, 1))
         total_loss = torch.mean(expected_loss)
-        return total_loss.to(device)   
+        return total_loss
 
 
 def entropy(p, reduction='mean'):
     logp = torch.log2(p)
     with torch.no_grad():
         logp = np.nan_to_num(logp.cpu().numpy(), neginf=0)
-        entropy_val = (-1*torch.sum(p.to(torch.device('cpu'))*logp,dim=len(p.shape)-1))
+        entropy_val = (-1*torch.sum(p.cpu()*logp,dim=len(p.shape)-1))
         if reduction == 'mean':
             entropy_val = entropy_val.mean()
     return entropy_val
@@ -81,7 +73,7 @@ def loss_importance(p, w_importance):
 
 def mutual_information(count_mat):
     (r,c) = count_mat.shape
-    joint_EY = torch.zeros((r,c), device=device)
+    joint_EY = torch.zeros((r,c))
     N = torch.sum(count_mat)
     for i in range(r):
         for j in range(c):
@@ -140,8 +132,8 @@ class attention(nn.Module):
 
     def forward(self, hidden_expert, hidden_gate):
 
-        #print('hidden_expert', hidden_expert.shape)
-        #print('hidden_gate', hidden_gate.shape)
+        # print('hidden_expert', hidden_expert.shape)
+        # print('hidden_gate', hidden_gate.shape)
 
         # Calculating Alignment Scores
         Q = self.Wq(hidden_gate)
@@ -149,8 +141,8 @@ class attention(nn.Module):
         K = self.Wk(hidden_expert)
         #V = self.Wv(hidden_expert)
 
-        #print('Q', Q.shape)
-        #print('K',K.shape)
+        # print('Q', Q.shape)
+        # print('K',K.shape)
         #print('V', V.shape)
 
         alignment_scores = Q @ torch.transpose(K,2,1)/self.hidden_size**0.5
