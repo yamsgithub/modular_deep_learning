@@ -51,9 +51,10 @@ class moe_no_gate_model(moe_models_base):
 
         # TESTING: using the scalar weights. 
         p = F.softmin(h/T, dim=1).detach()
-        #print('gate', p.shape)
 
         self.gate_outputs = p
+        
+        gate_entropy = moe_models.entropy(p, reduction='none')
 
         if self.expectation:
             # reshape gate output so probabilities correspond 
