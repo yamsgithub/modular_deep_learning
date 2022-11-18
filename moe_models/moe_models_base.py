@@ -8,37 +8,65 @@ from torch.profiler import profile, record_function, ProfilerActivity
 
 from helper import moe_models
 
-def two_temp_optim(model, inputs, labels, outputs, gate_outputs, expert_outputs, T, optimizer_gate, optimizer_experts, loss_criterion, regularization=0.0):
-    outputs_with_T = model(inputs, T)
-    expert_outputs_T = model.expert_outputs
-    gate_outputs_T = model.gate_outputs
+class two_temp_optim:
+    def __init__(self, optimizer_moe, optimizer_gate, optimizer_experts):
+        self.optimizer_moe = optimizer_moe
+        self.optimizer_gate = optimizer_gate
+        self.optimizer_experts = optimizer_experts
+        
+    def optimise(self, model=None, inputs=None, labels=None, 
+                 outputs=None, expert_outputs=None, gate_outputs=None, 
+                 loss_criterion=None, regularization=0.0, T=1.0):
+        expert_outputs_T = model.expert_outputs
+        gate_outputs_T = model.gate_outputs
 
-    optimizer_experts.zero_grad(set_to_none=True)
-    loss_experts = loss_criterion(outputs_with_T, expert_outputs_T, gate_outputs_T, labels)
-    loss_experts.backward()
-   
-    for expert in model.experts:
-        for param in expert.parameters():
-            param.requires_grad = False
-     
-    optimizer_gate.zero_grad(set_to_none=True)
-    loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
-    
-    if not regularization == 0.0:
-        loss += regularization
+        optimizer_experts.zero_grad(set_to_none=True)
+        loss_experts = loss_criterion(outputs_with_T, expert_outputs_T, gate_outputs_T, labels)
+        loss_experts.backward()
 
-    loss.backward()
-    
-    for expert in model.experts:
-        for param in expert.parameters():
-            param.requires_grad = True 
-    
-    optimizer_gate.step()
-    optimizer_experts.step()
-    
+        for expert in model.experts:
+            for param in expert.parameters():
+                param.requires_grad = False
 
-    return loss, gate_outputs_T
+        optimizer_gate.zero_grad(set_to_none=True)
+        loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
 
+        if not regularization == 0.0:
+            loss += regularization
+
+        loss.backward()
+
+        for expert in model.experts:
+            for param in expert.parameters():
+                param.requires_grad = True 
+
+        optimizer_gate.step()
+        optimizer_experts.step()
+
+        self.gate_probabilities_batch_high_T = gate_outputs_T
+        
+        return loss
+
+class default_optimizer:
+    def __init__(self, optimizer_moe=None, optimizer_gate=None, optimizer_experts=None):
+        self.optimizer_moe = optimizer_moe
+        self.optimizer_gate = optimizer_gate
+        self.optimizer_experts = optimizer_experts
+        
+    def optimise(self, model=None, inputs=None, labels=None, outputs=None, expert_outputs=None, gate_outputs=None, 
+                 loss_criterion=None, regularization=0.0, T=1.0):
+        # zero the parameter gradients
+        self.optimizer_moe.zero_grad(set_to_none=True)
+        loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
+        if not regularization == 0: 
+            loss += regularization   
+
+        loss.backward()
+
+        self.optimizer_moe.step()
+        
+        return loss
+    
 # The moe architecture that outputs an expected output of the experts
 # based on the gate probabilities
 class moe_models_base(nn.Module):
@@ -64,7 +92,7 @@ class moe_models_base(nn.Module):
             param_group['lr'] = lr
 
     def train(self, trainloader, testloader,
-              loss_criterion, optimizer_moe, scheduler_moe=None, optimizer_gate=None, optimizer_experts=None, 
+              loss_criterion, optimizer=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
               w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
               T=[1.0]*20, T_decay=0.0, T_decay_start=0, no_gate_T = [1.0]*20,
@@ -214,23 +242,14 @@ class moe_models_base(nn.Module):
                         ideal_gate_loss_criterion = nn.MSELoss()
                         ideal_gate_loss = ideal_gate_loss_criterion(gate_outputs, ideal_gate_output)
                         regularization += ideal_gate_loss
+                
  
+                loss = optimizer.optimise(self, inputs, labels, outputs, expert_outputs, gate_outputs,  
+                                 loss_criterion, regularization, T[epoch])
                 if not T[epoch] == 1.0:
-                   loss, gate_probabilities_batch_high_T = two_temp_optim(self, inputs, labels, outputs, gate_outputs, expert_outputs, T[epoch],
-                                                                          optimizer_gate, optimizer_experts, loss_criterion, regularization)
+                   loss, gate_probabilities_batch_high_T = optimizer.gate_probabilities_batch_high_T
                    gate_probabilities_high_T.append(gate_probabilities_batch_high_T)
-                   running_entropy_T += moe_models.entropy(gate_probabilities_batch_high_T)
-                    
-                else:
-                   # zero the parameter gradients
-                   optimizer_moe.zero_grad(set_to_none=True)
-                   loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
-                   if not regularization == 0: 
-                        loss += regularization   
-
-                   loss.backward()
-
-                   optimizer_moe.step()
+                   running_entropy_T += moe_models.entropy(gate_probabilities_batch_high_T)                   
 
                 running_loss += loss
 
@@ -304,9 +323,6 @@ class moe_models_base(nn.Module):
                     j += 1
                     
                 test_running_accuracy = test_running_accuracy/j
-
-            if not scheduler_moe is None: 
-               scheduler_moe.step()
 
             running_loss = running_loss / num_batches
             running_loss_importance = running_loss_importance / num_batches
@@ -417,8 +433,9 @@ class moe_models_base(nn.Module):
                   ', training accuracy %.2f' % train_running_accuracy,
                   ', test accuracy %.2f' % test_running_accuracy)
             if (epoch+1) % 20 == 0:
-                curr_lr /= 3
-                self.update_lr(optimizer_moe, curr_lr)
+                if not optimizer.optimizer_moe is None:
+                    curr_lr /= 3
+                    self.update_lr(optimizer.optimizer_moe, curr_lr)
                 
             if epoch > T_decay_start and T_decay > 0:
                 print('t decay', type(T_decay),T_decay, epoch)
