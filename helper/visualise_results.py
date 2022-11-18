@@ -17,14 +17,6 @@ import torch
 
 from helper.moe_models import entropy
 
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
-
-
 # helper function to show an image
 def imshow(img, one_channel=False):
     if one_channel:
@@ -213,7 +205,7 @@ def generate_plot_file(dataset, temp=1.0, w_importance=0.0, w_ortho=0.0, w_sampl
 
 def find_best_model(m, temps=[[1.0]*20], w_importance_range=[],  
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
-                    total_experts=5, num_classes=10, num_epochs=20, model_path=None):
+                    total_experts=5, num_classes=10, num_epochs=20, model_path=None, device='cpu'):
 
     min_train_error = float('inf')
     mutual_info = 0.0
@@ -272,14 +264,14 @@ def find_best_model(m, temps=[[1.0]*20], w_importance_range=[],
 
 def plot_expert_usage(m, test_loader, temps=[[1.0]*20], w_importance_range=[], w_ortho_range=[0.0], 
                       w_sample_sim_same_range=[], w_sample_sim_diff_range=[], total_experts=5, num_classes=10, 
-                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None):
+                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None, device='cpu'):
     
     fontsize = 15
     fontsize_label = 12
 
     model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
                                    w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
-                                        num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path)
+                                        num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path, device=device)
     print(model_file)
 
     for e_key, e_val in model.items():
@@ -297,7 +289,7 @@ def plot_expert_usage(m, test_loader, temps=[[1.0]*20], w_importance_range=[], w
         ax.set_ylim(bottom=0)
         plt.xlabel('Epochs')
         plt.ylabel('Number of Samples')
-        plt.legend(['E'+str(i+1) for i in range(5)])
+        plt.legend(['E'+str(i+1) for i in range(total_experts)])
         plt.show()
 
         cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
@@ -345,14 +337,15 @@ def plot_expert_usage(m, test_loader, temps=[[1.0]*20], w_importance_range=[], w
                     exp_class_prob[e,l] += gate_outputs[index,e]
 
             exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
-            fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(36,12))
+            #fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(36,12))
+            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(36,12))
                 
             sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
                         xticklabels=[classes[i] for i in range(0, num_classes)],
-                        cmap=cmap, annot=True, fmt='d', ax=ax[0])
-            sns.heatmap(exp_total_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
-                        xticklabels=['Total'],
-                        cmap=cmap, annot=True, fmt='d', ax=ax[1])
+                        cmap=cmap, annot=True, fmt='d', ax=ax)
+            #sns.heatmap(exp_total_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+            #            xticklabels=['Total'],
+            #            cmap=cmap, annot=True, fmt='d', ax=ax[1])
             plt.show()
             
 
