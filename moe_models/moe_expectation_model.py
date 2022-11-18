@@ -57,6 +57,6 @@ class moe_expectation_model(moe_models_base):
         p = p.repeat(1,1,y.shape[2])
 
         # expected sum of expert outputs
-        output = torch.sum(p*y, 1)
+        output = F.softmax(torch.sum(p*y, 1), dim=1)
 
         return output
