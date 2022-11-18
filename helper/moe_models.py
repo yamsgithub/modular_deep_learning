@@ -22,6 +22,18 @@ class cross_entropy_loss(nn.Module):
         crossentropy_loss = self.criterion(logp, targets)
         return crossentropy_loss
 
+class expert_entropy_loss(nn.Module):
+    def __init__(self):
+        super(expert_entropy_loss, self).__init__()
+        self.criterion = cross_entropy_loss()
+        
+    def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, targets=None):
+        eps=1e-15
+        expected_expert_outputs = expert_outputs[torch.arange(expert_outputs.shape[0]).type_as(targets),:, targets]
+        e_logp = torch.log(expected_expert_outputs+eps)
+        gate_loss = torch.sum(torch.mean(torch.abs(gate_outputs-e_logp), dim=0))
+        return gate_loss
+
 class stochastic_loss(nn.Module):
 
     def __init__(self, loss_criterion, ):
@@ -33,17 +45,14 @@ class stochastic_loss(nn.Module):
         self.loss_criterion.reduction(r)
 
     def forward(self, outputs, expert_outputs, gate_outputs, target):
-        expert_outputs = torch.transpose(expert_outputs, 0,1)
-        expert_loss = []
-        for i in range(expert_outputs.shape[0]):
-            loss = self.loss_criterion(expert_outputs[i], None, None, target)
-            if len(loss.shape) > 1:
-                loss = torch.mean(loss, dim=1)
-            expert_loss.append(torch.exp(-0.5*loss))
-        expert_loss = torch.stack(expert_loss)
-        expert_loss.transpose_(0,1)
-        expected_loss = -1*torch.log(torch.sum(gate_outputs * expert_loss, 1))
-        total_loss = torch.mean(expected_loss)
+        num_experts = expert_outputs.shape[1]
+        expected_loss = []
+        for i in range(num_experts):
+            loss = self.loss_criterion(expert_outputs[:,i,:], None, None, target)
+            expected_loss.append(gate_outputs[:,i]*torch.exp(-0.5*loss))
+        eps = 1e-15
+        expected_loss = torch.stack(expected_loss).transpose(0,1)
+        total_loss = torch.mean(-1*torch.log(torch.sum(expected_loss, dim=1)+eps))
         return total_loss
 
 
