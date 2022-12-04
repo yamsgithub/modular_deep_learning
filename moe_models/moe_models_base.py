@@ -82,7 +82,7 @@ class moe_models_base(nn.Module):
         self.gate_outputs = None
         self.attention = attention_flag
         if self.attention:
-            self.attn = moe_models.attention(hidden)
+            self.attn = moe_models.attention(hidden).to(device)
         self.task = task
         self.device = device
         
