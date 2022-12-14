@@ -245,7 +245,7 @@ class moe_models_base(nn.Module):
                 
  
                 loss = optimizer.optimise(self, inputs, labels, outputs, expert_outputs, gate_outputs,  
-                                 loss_criterion, regularization, T[epoch])
+                                 loss_criterion, regularization, epoch)
                 if not T[epoch] == 1.0:
                    loss, gate_probabilities_batch_high_T = optimizer.gate_probabilities_batch_high_T
                    gate_probabilities_high_T.append(gate_probabilities_batch_high_T)
@@ -432,10 +432,10 @@ class moe_models_base(nn.Module):
                   'training loss %.2f' % running_loss,
                   ', training accuracy %.2f' % train_running_accuracy,
                   ', test accuracy %.2f' % test_running_accuracy)
-            if (epoch+1) % 20 == 0:
-                if not optimizer.optimizer_moe is None:
-                    curr_lr /= 3
-                    self.update_lr(optimizer.optimizer_moe, curr_lr)
+            # if (epoch+1) % 20 == 0:
+            #     if not optimizer.optimizer_moe is None:
+            #         curr_lr /= 3
+            #         self.update_lr(optimizer.optimizer_moe, curr_lr)
                 
             if epoch > T_decay_start and T_decay > 0:
                 print('t decay', type(T_decay),T_decay, epoch)
