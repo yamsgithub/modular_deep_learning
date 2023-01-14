@@ -1,0 +1,13 @@
+filename,train error,test error,test error std,mutual information,sample entropy,experts usage
+cifar10_without_reg_conv_2_top_1_10_10_models.pt,79.355,78.220,0.017,0.000,0.001,0.001
+cifar10_without_reg_conv_2_top_2_10_10_models.pt,81.330,78.903,0.009,0.081,0.016,0.063
+cifar10_without_reg_conv_2_10_10_models.pt,68.961,68.880,0.017,0.798,0.104,0.509
+cifar10_without_reg_loss_gate_conv_2_10_10_models.pt,84.870,78.388,0.009,0.584,4.248,1.894
+cifar10_with_attn_conv_2_top_1_10_10_models.pt,79.862,77.332,0.052,0.000,0.000,0.000
+cifar10_with_attn_conv_2_top_2_10_10_models.pt,76.869,72.400,0.235,0.000,0.000,0.000
+cifar10_without_reg_conv_4_top_1_10_10_models.pt,67.409,68.721,0.008,0.000,0.003,0.002
+cifar10_without_reg_conv_4_top_2_10_10_models.pt,75.984,74.979,0.029,1.196,0.164,0.847
+cifar10_without_reg_conv_4_10_10_models.pt,70.577,69.979,0.013,1.155,0.073,0.791
+cifar10_without_reg_loss_gate_conv_4_10_10_models.pt,91.945,84.866,0.008,2.416,3.966,1.999
+cifar10_with_attn_conv_4_top_1_10_10_models.pt,67.721,69.006,0.007,0.000,0.000,0.000
+cifar10_with_attn_conv_4_top_2_10_10_models.pt,96.336,87.526,0.005,2.941,0.156,1.948

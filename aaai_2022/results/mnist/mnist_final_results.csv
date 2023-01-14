@@ -1,0 +1,11 @@
+filename,train error,test error,mutual information,sample entropy,expert usage,val error std
+mnist_single_model_hidden_32_5,0.097,0.096,,,,0.071
+mnist_without_reg_hidden_32_10_5_models.pt,0.021,0.038,2.022,0.092,2.172,0.030
+mnist_with_reg_hidden_32_importance_0.2_10_5_models.pt,0.015,0.032,2.262,0.061,2.320,0.008
+mnist_with_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_1e-06_10_5_models.pt,0.015,0.029,2.244,0.051,2.246,0.009
+mnist_with_attn_reg_hidden_32_importance_0.2_10_5_models.pt,0.013,0.035,2.260,0.055,2.266,0.005
+mnist_with_attn_sample_sim_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_0.01_10_5_models.pt,0.013,0.032,2.275,0.039,2.321,0.006
+new_mnist_with_attn_reg_hidden_32_importance_0.4_10_5_models.pt,0.009,0.030,2.301,0.036,2.320,0.006
+new_mnist_with_attn_sample_sim_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_0.001_10_5_models.pt,0.009,0.028,2.191,0.056,2.319,0.007
+mnist_without_reg_top_1_loss_gate_10_5_models.pt,0.065,0.066,1.107,7.926,1.265,0.017
+mnist_without_reg_stochastic_loss_gate_10_5_models.pt,0.113,0.112,0.323,9.210,1.609,0.013

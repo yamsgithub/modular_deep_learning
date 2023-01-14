@@ -1,0 +1,15 @@
+filename,train error,test error,mutual information,sample entropy,expert usage,val error std
+mnist_single_model_hidden_32_5,0.097,0.096,,,,0.071
+mnist_without_reg_10_5_models.pt,0.050,0.052,0.000,0.000,0.000,nan
+mnist_without_reg_hidden_32_10_5_models.pt,0.021,0.038,2.022,0.092,2.172,0.009
+mnist_with_reg_hidden_32_importance_0.2_10_5_models.pt,0.015,0.032,2.262,0.061,2.320,0.008
+mnist_with_reg_importance_0.2_10_5_models.pt,0.050,0.051,0.109,0.000,0.000,0.412
+mnist_with_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_1e-06_10_5_models.pt,0.015,0.029,2.244,0.051,2.246,0.009
+mnist_with_attention_hidden_32_10_5_models.pt,0.019,0.033,1.797,0.071,2.055,0.006
+mnist_with_attn_reg_hidden_32_importance_0.2_10_5_models.pt,0.013,0.035,2.260,0.055,2.266,0.005
+mnist_with_attn_sample_sim_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_0.01_10_5_models.pt,0.013,0.032,2.275,0.039,2.321,0.006
+new_mnist_with_attn_reg_hidden_32_importance_0.4_10_5_models.pt,0.009,0.030,2.301,0.036,2.320,0.007
+new_mnist_with_attn_sample_sim_reg_hidden_32_sample_sim_same_1e-06_sample_sim_diff_0.001_10_5_models.pt,0.009,0.028,2.191,0.056,2.319,0.007
+new_mnist_with_reg_importance_1.0_10_15_models.pt,0.011,0.050,2.953,0.725,3.889,0.011
+new_mnist_with_reg_sample_sim_same_1e-05_sample_sim_diff_0.0001_10_15_models.pt,0.011,0.055,2.869,0.104,2.945,0.011
+new_mnist_with_attention_hidden_32_10_5_models.pt,0.019,0.751,1.288,1.411,2.182,0.146

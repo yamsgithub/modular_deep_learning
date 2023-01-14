@@ -1,0 +1,224 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # Experiments with MNIST Dataset and Gate Predicting Expert Loss
+
+# The experiments in this notebook include training the original MoE models as follows:
+# 
+# 1. original MoE without regularization.
+# 2. original MoE with $L_{importance}$ regularization.
+# 3. original MoE with $L_s$ regularization.
+# 4. train a single model.
+
+# In[6]:
+
+from mnist_original_moe_training import *
+
+
+# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
+class gate_layers(nn.Module):
+    def __init__(self, num_experts):
+        super(gate_layers, self).__init__()
+        # define layers
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3)
+        self.fc1 = nn.Linear(in_features=1*13*13, out_features=128)
+        self.fc2 = nn.Linear(in_features=128, out_features=32)
+        self.mp = nn.MaxPool2d(2,2)
+        self.out = nn.Linear(in_features=32, out_features=num_experts)
+        self.num_experts = num_experts
+        
+        self.apply(self._init_weights)
+        
+    def _init_weights(self, module):
+        if isinstance(module, nn.MaxPool2d) or isinstance(module, gate_layers):
+            return
+        module.weight.data.zero_()
+        if module.bias is not None:
+            module.bias.data.zero_()
+
+    def forward(self, t, T=1.0, y=None):
+        # conv 1
+        t = self.mp(F.relu(self.conv1(t)))
+        
+        # fc1
+        t = t.reshape(-1, 1*13*13)
+            
+        t = F.relu(self.fc1(t))
+
+        # fc2
+        t = F.relu(self.fc2(t))
+
+        # output expert log loss
+        t = self.out(t)
+
+        return t
+
+# The moe architecture that outputs an expected output of the experts
+# based on the gate probabilities
+
+# The moe architecture that outputs an expected output of the experts
+# based on the gate probabilities
+# class moe_expert_stochastic_model(moe_models_base):
+
+#     def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, experts=None, gate=None, task='classification',device = torch.device("cpu")):
+#         super(moe_expert_stochastic_model,self).__init__(num_experts, num_classes, augment, attention_flag, hidden, experts, gate, task, device)
+#         self.device = device
+
+#     def forward(self,inputs, T=1.0):
+
+#         p = self.gate(inputs, T)        
+        
+#         y = []
+#         for i, expert in enumerate(self.experts):
+#             expert_output = expert(inputs)
+#             y.append(expert_output)
+            
+#         y = torch.stack(y).transpose_(0,1).to(self.device)
+
+#         self.expert_outputs = y
+#         self.gate_outputs = p
+        
+#         try:
+#             m  = Categorical(F.softmax(p, dim=1))
+#             self.samples = m.sample().to(device)
+#         except:
+#             raise
+
+#         output = y[torch.arange(y.shape[0]).type_as(self.samples), self.samples]
+
+#         return output
+
+
+# ## Functions to train models
+
+# ### Function to train original model with and without regularization
+# 
+# * w_importance_range is the range of values for the $w_{importance}$ hyperparameter of the $L_{importance}$ regularization.
+# * w_sample_sim_same_range is the range of values for $\beta_s$ hyperparameter of the $L_s$ regularization.
+# * w_sample_sim_diff_range is the range of values for $\beta_d$ hyperparameter of the $L_s$ regularization.
+
+# In[23]:
+
+
+
+
+# ### Function to pre-train experts with data splits
+
+# In[24]:
+
+
+# Function to pre-train experts according to the split
+# def train_experts(total_experts, num_classes, num_epochs, batch_size,
+#                   trainset, testset):
+#     expert_models_copy = experts(total_experts, num_classes).to(device)
+#     expert_models = deepcopy(expert_models_copy)
+    
+#     train_splits = random_split(trainset, [int(trainsize/total_experts)]*total_experts,generator=torch.Generator().manual_seed(42))
+    
+#     for i, expert in enumerate(expert_models):
+        
+#         trainloader = torch.utils.data.DataLoader(train_splits[i], 
+#                                           batch_size=batch_size,
+#                                           shuffle=True)
+        
+#         optimizer_expert = optim.Adam(expert.parameters(), lr=0.001, amsgrad=False)
+
+#         loss_criterion = cross_entropy_loss()
+#         for epoch in range(num_epochs):
+#             running_loss = 0.0
+#             train_running_accuracy = 0.0
+#             num_batches = 0
+#             for inputs, labels in trainloader:
+#                 inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+#                 outputs = expert(inputs)
+
+#                 optimizer_expert.zero_grad()
+#                 loss = loss_criterion(outputs, None, None,labels)
+
+#                 loss.backward()
+
+#                 optimizer_expert.step()
+
+#                 running_loss += loss.item()
+
+#                 outputs = expert(inputs)
+
+#                 acc = accuracy(outputs, labels)
+#                 train_running_accuracy += acc
+
+#                 num_batches += 1
+                
+#             print('epoch %d' % epoch,
+#                   'training loss %.2f' % (running_loss/num_batches),
+#                    ', training accuracy %.2f' % (train_running_accuracy/num_batches),
+#                    )
+#     pre_trained_expert = 'mnist_pre_trained_splits'
+#     plot_file = generate_plot_file(pre_trained_expert, specific=str(num_classes)+'_'+str(total_experts)+'_expert_model.pt')
+#     print(plot_file)
+#     torch.save([expert_models, expert_models_copy],open(os.path.join(model_path, plot_file),'wb'))
+#     return expert_models, expert_models_copy
+
+
+
+# def train_with_pretrained_experts(m, model_type, pre_trained_expert,
+#                                  total_experts, num_classes, num_epochs):
+    
+#     # Train models model_4, model_5 and model_6 for the different splits of the digits shown above.
+#     T = [1.0]*20
+#     #re_trained_expert = 'mnist_pre_trained_10K'
+#     n_split_models_1 = []
+
+#     model_types = {
+#                 'moe_expert_stochastic_model': {
+#                     'moe_expert_stochastic_model':{'model':moe_expert_stochastic_model,'loss':stochastic_loss(cross_entropy_loss).to(device),'experts':{}},
+#                 },
+#                 'moe_expert_expectation_model': {
+#                     'moe_expert_expectation_model':{'model':moe_expert_expectation_model,'loss':cross_entropy_loss().to(device),'experts':{}},
+#                 }
+#     }
+
+#     models = model_types[model_type]
+#     # Load the pre-trained experts for the corresponding split
+#     plot_file = generate_plot_file(pre_trained_expert, specific=str(num_classes)+'_'+str(total_experts)+'_expert_model.pt')
+#     print(plot_file)
+#     expert_models, expert_models_copy = torch.load(os.path.join(model_path, plot_file), map_location=device)
+
+#     for i, expert in enumerate(expert_models):
+#         for param in expert.parameters():
+#             param.requires_grad = False
+
+#     for key, val in models.items():
+#         print('Model:', key, total_experts, 'Experts')
+#         print('Building model with pre-trained experts')
+
+#         expert_models = expert_models.to(device)
+
+#         gate_model = gate_layers(total_experts)
+
+#         moe_model = val['model'](total_experts, num_classes, 
+#                                  experts=expert_models, gate=gate_model, device=device)
+
+#         params = [p.numel() for p in moe_model.parameters() if p.requires_grad]
+#         print('model params:', sum(params))
+
+#         optimizer_gate = optim.Adam(gate_model.parameters(), lr=0.001,  amsgrad=False)
+#         params = []
+#         for i, expert in enumerate(expert_models):
+#             params.append({'params':expert.parameters()})
+#         optimizer_experts = optim.Adam(params, lr=0.001,  amsgrad=False)
+#         optimizer = expert_loss_gate_optimizer(optimizer_gate=optimizer_gate)
+
+#         hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer=optimizer, T=T,
+#                                accuracy=accuracy, epochs=num_epochs)
+#         val['experts'][total_experts] = {'model':moe_model, 'history':hist}
+
+#     plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+
+#     if os.path.exists(os.path.join(model_path, plot_file)):
+#         n_split_models_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'))
+
+#     n_split_models_1.append(models)
+#     torch.save(n_split_models_1,open(os.path.join(model_path, plot_file),'wb'))
+#     n_split_models_1 = []
+
+

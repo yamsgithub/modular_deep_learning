@@ -1,0 +1,13 @@
+filename,train error,test error,mutual information,sample entropy,experts usage
+cifar10_single_model_0,64.121,65.961,,,
+cifar10_without_reg_10_5_models.pt,63.655,62.750,0.751,0.104,0.768
+cifar10_with_reg_importance_0.2_10_5_models.pt,83.851,80.826,2.147,0.568,2.247
+cifar10_with_reg_sample_sim_same_0.0001_sample_sim_diff_0.0001_10_5_models.pt,69.499,68.825,1.666,0.166,1.783
+cifar10_with_attention_10_5_models.pt,83.985,80.220,2.152,0.195,2.004
+cifar10_with_attn_reg_importance_0.2_10_5_models.pt,85.716,81.519,2.246,0.242,2.199
+cifar10_with_attn_reg_sample_sim_same_0.0001_sample_sim_diff_0.0001_10_5_models.pt,47.202,48.767,1.315,0.019,1.509
+cifar10_single_model_expert_residual_0,87.840,83.936,,,
+cifar10_without_reg_conv_2_top_2_10_32_models.pt,81.236,79.971,0.000,0.000,0.000
+cifar10_without_reg_conv_4_top_1_10_32_models.pt,9.880,9.985,0.000,0.000,0.000
+cifar10_without_reg_conv_4_top_2_10_32_models.pt,74.205,73.164,0.859,0.154,0.899
+cifar10_without_reg_conv_4_top_2_10_10_models.pt,75.984,75.095,1.196,0.164,1.228

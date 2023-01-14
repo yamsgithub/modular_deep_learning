@@ -1,0 +1,11 @@
+filename,test error,training loss,mutual information,sample entropy,experts usage,expert error,gate error,total error
+cifar100_scratch,0.46,0.95,2.20,0.65,2.60,1272.80,3349.20,4622.00
+cifar100_pretrained_gate_scratch_same_wts,0.47,0.95,2.27,0.65,2.84,1253.60,3402.20,4655.80
+cifar100_pretrained_gate_scratch_rand_wts,0.63,2.27,2.63,0.65,2.65,1568.00,4690.20,6258.20
+cifar100_pretrained_gate_prechosen,0.43,0.56,4.30,0.62,3.80,1609.43,2660.57,4270.00
+cifar100_pretrained_gate_prechosen_same_wts,0.41,0.55,4.32,0.62,3.72,1500.00,2646.00,4146.00
+cifar100_pretrained_gate_prechosen_rand_wts,0.42,0.55,4.32,0.62,3.93,1516.00,2626.00,4142.00
+cifar100_pretrained_gate_prechosen_best,0.43,0.58,4.32,0.63,3.81,1630.33,2689.33,4319.67
+cifar100_pretrained_gate_prechosen_best_same_wts,0.42,0.56,4.32,0.62,3.88,1490.00,2690.00,4180.00
+cifar100_pretrained_gate_prechosen_best_rand_wts,0.43,0.55,4.31,0.63,3.90,1556.00,2691.00,4247.00
+cifar100_pretrained_gate_prechosen_unfixed,0.41,0.43,4.21,0.58,3.70,1518.00,2649.00,4167.00

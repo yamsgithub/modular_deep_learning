@@ -1,0 +1,8 @@
+filename,train error,test error,test error std,mutual information,sample entropy,experts usage
+mnist_without_reg_10_10_models.pt,91.031,90.731,0.002,0.000,0.105,0.073
+mnist_without_reg_inf_top_1_10_10_models.pt,90.941,90.934,0.006,0.000,0.109,0.076
+mnist_without_reg_inf_top_2_10_10_models.pt,91.600,91.561,0.005,0.000,0.822,0.570
+mnist_with_attention_top_1_10_10_models.pt,89.439,89.309,0.029,0.000,0.000,0.000
+mnist_with_attention_top_2_10_10_models.pt,96.097,94.835,0.004,1.420,0.077,1.142
+mnist_with_attention_10_10_models.pt,95.784,94.607,0.005,1.996,0.006,1.481
+mnist_without_reg_loss_gate_10_10_models.pt,91.294,90.953,0.003,-0.000,9.211,1.740

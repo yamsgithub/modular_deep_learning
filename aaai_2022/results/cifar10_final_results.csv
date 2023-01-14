@@ -1,0 +1,22 @@
+filename,train error,test error,mutual information,sample entropy,experts usage
+cifar10_single_model_7,0.360,0.338,,,
+cifar10_without_reg_10_5_models.pt,0.230,0.245,1.701,0.200,1.715
+cifar10_with_reg_importance_0.2_10_5_models.pt,0.145,0.180,2.301,0.370,2.231
+cifar10_with_reg_sample_sim_same_1e-05_sample_sim_diff_1e-07_10_5_models.pt,0.175,0.204,2.128,0.263,2.068
+cifar10_with_attention_10_5_models.pt,0.160,0.198,2.152,0.195,2.004
+cifar10_with_attn_reg_importance_1.0_10_5_models.pt,0.138,0.183,2.263,0.253,2.216
+cifar10_with_attn_reg_sample_sim_same_0.0001_sample_sim_diff_1e-07_10_5_models.pt,0.434,0.423,2.098,0.065,2.152
+filename,train error,test error,mutual information,sample entropy,experts usage,val error std
+cifar10_single_model_7,0.360,0.338,,,,0.008
+cifar10_without_reg_10_5_models.pt,0.182,0.213,2.178,0.276,2.153,0.022
+cifar10_with_reg_importance_1.0_10_5_models.pt,0.120,0.158,2.322,0.422,2.277,0.024
+cifar10_with_reg_sample_sim_same_1e-05_sample_sim_diff_1e-07_10_5_models.pt,0.144,0.178,2.321,0.272,2.283,0.052
+cifar10_with_attention_10_5_models.pt,0.141,0.184,2.181,0.260,2.117,0.009
+cifar10_with_attn_reg_importance_1.0_10_5_models.pt,0.113,0.173,2.320,0.263,2.136,0.009
+cifar10_with_attn_reg_sample_sim_same_0.0001_sample_sim_diff_1e-07_10_5_models.pt,0.330,0.327,2.220,0.089,2.186,0.080
+cifar10_without_reg_10_5_models.pt,0.182,0.213,2.178,0.276,2.153,0.022
+cifar10_with_reg_importance_1.0_10_5_models.pt,0.120,0.158,2.322,0.422,2.277,0.024
+cifar10_with_reg_sample_sim_same_1e-05_sample_sim_diff_1e-07_10_5_models.pt,0.144,0.178,2.321,0.272,2.283,0.052
+cifar10_with_attention_10_5_models.pt,0.141,0.184,2.181,0.260,2.117,0.009
+cifar10_with_attn_reg_importance_1.0_10_5_models.pt,0.113,0.173,2.320,0.263,2.136,0.009
+cifar10_with_attn_reg_sample_sim_same_0.0001_sample_sim_diff_1e-07_10_5_models.pt,0.330,0.327,2.220,0.089,2.186,0.080
