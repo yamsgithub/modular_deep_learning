@@ -3,6 +3,7 @@ from cifar10_original_moe_training import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-i', help='task count')
+
 args = vars(parser.parse_args())
 print('args', args)
 
