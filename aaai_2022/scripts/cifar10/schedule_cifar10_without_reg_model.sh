@@ -3,7 +3,7 @@
 # Generic options:
 
 #SBATCH --account=bdrap03  # Run job under project <project>
-#SBATCH --time=05:00:00  # Run for a max of 2 day
+#SBATCH --time=48:00:00  # Run for a max of 2 day
 
 # Node resources:
 # (choose between 1-4 gpus per node)
@@ -18,7 +18,7 @@
 
 cd /nobackup/projects/bdrap03/yamuna/modular_deep_learning/
 
-export MNN_HOME=/nobackup/projects/bdrap03/yamuna/modular_deep_learning/
+export MNN_HOME=/nobackup/projects/bdrap03/yamuna/modular_deep_learning/:/nobackup/projects/bdrap03/yamuna/modular_deep_learning/aaai_2022/src
 echo "MNN_HOME  : $MNN_HOME"
 
 export PYTHONPATH=$MNN_HOME
@@ -28,6 +28,6 @@ conda init bash
 conda deactivate
 conda activate mnn
 
-python aaai_2022/src/cifar10/cifar10_without_reg_model.py
+python aaai_2022/src/cifar10/cifar10_without_reg_model.py $*
 
 echo "end of job"

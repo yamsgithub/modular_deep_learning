@@ -3,7 +3,7 @@
 # Generic options:
 
 #SBATCH --account=bdrap03  # Run job under project <project>
-#SBATCH --time=02:00:00         # Run for a max of 1 hour
+#SBATCH --time=05:00:00         # Run for a max of 1 hour
 
 # Node resources:
 # (choose between 1-4 gpus per node)
