@@ -17,9 +17,10 @@ class cross_entropy_loss(nn.Module):
         self.criterion.reduction = r
         
     def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, targets=None):
-        eps=1e-7
+        eps=1e-15
         logp = torch.log(outputs+eps)
         crossentropy_loss = self.criterion(logp, targets)
+        # print('crossentropy_loss', crossentropy_loss)
         return crossentropy_loss
 
 class expert_entropy_loss(nn.Module):
@@ -44,7 +45,7 @@ class stochastic_loss(nn.Module):
     def reduction(self, r='none'):
         self.loss_criterion.reduction(r)
 
-    def forward(self, outputs, expert_outputs, gate_outputs, target):
+    def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, target=None):
         num_experts = expert_outputs.shape[1]
         expected_loss = []
         for i in range(num_experts):
@@ -52,7 +53,7 @@ class stochastic_loss(nn.Module):
             expected_loss.append(gate_outputs[:,i]*torch.exp(-0.5*loss))
         eps = 1e-15
         expected_loss = torch.stack(expected_loss).transpose(0,1)
-        total_loss = torch.mean(-1*torch.log(torch.sum(expected_loss, dim=1)+eps))
+        total_loss = torch.mean(-1*(torch.log(torch.sum(expected_loss, dim=1)+eps)))
         return total_loss
 
 
@@ -130,8 +131,10 @@ def mutual_information(count_mat):
 
 class attention(nn.Module):
 
-    def __init__(self, hidden):
+    def __init__(self, hidden, softmax=True):
         super(attention,self).__init__()
+        
+        self.softmax = softmax
 
         self.Wq = nn.Linear(hidden, hidden, bias=False)
         self.Wk = nn.Linear(hidden, hidden, bias=False)
@@ -140,34 +143,23 @@ class attention(nn.Module):
         self.hidden_size = hidden
 
     def forward(self, hidden_expert, hidden_gate):
-
-        # print('hidden_expert', hidden_expert.shape)
-        # print('hidden_gate', hidden_gate.shape)
-
+        
         # Calculating Alignment Scores
         Q = self.Wq(hidden_gate)
         Q = Q.view(-1,1,Q.shape[1])
         K = self.Wk(hidden_expert)
-        #V = self.Wv(hidden_expert)
-
-        # print('Q', Q.shape)
-        # print('K',K.shape)
-        #print('V', V.shape)
+        
 
         alignment_scores = Q @ torch.transpose(K,2,1)/self.hidden_size**0.5
-        #print('alignment scores', alignment_scores.shape) 
-
+        alignment_scores = alignment_scores.squeeze()
+        
         # Softmaxing alignment scores to get Attention weights
-        attn_weights = F.softmax(alignment_scores.squeeze(), dim=1)
-        #print('attn weights', attn_weights.shape)
+        if self.softmax:
+            attn_weights = F.softmax(alignment_scores, dim=1)
+        else:
+            attn_weights = alignment_scores
         
         return attn_weights
-        
-        # Multiplying the Attention weights with encoder outputs to get the context vector
-        #context_vector = torch.bmm(attn_weights, V).squeeze()
-        #print('context_vector', context_vector.shape)
-
-        #return context_vector
     
 
 class attention_old(nn.Module):

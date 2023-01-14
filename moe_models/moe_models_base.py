@@ -66,12 +66,45 @@ class default_optimizer:
         self.optimizer_moe.step()
         
         return loss
+
+class expert_loss_gate_optimizer:
+    def __init__(self, optimizer_moe=None, optimizer_gate=None, optimizer_experts=None):
+        self.optimizer_moe = optimizer_moe
+        self.optimizer_gate = optimizer_gate
+        self.optimizer_experts = optimizer_experts
+        self.prev_epoch = 0
+        self.count = 1
+        
+    def optimise(self, model=None, inputs=None, labels=None, outputs=None, expert_outputs=None, gate_outputs=None, 
+                 loss_criterion=None, regularization=0.0, epoch=0):
+        
+        # zero the parameter gradients
+        if not self.optimizer_experts is None:
+            self.optimizer_experts.zero_grad(set_to_none=True)                 
+            expert_loss = loss_criterion(outputs=outputs, targets=labels)
+            expert_loss.backward()
+        else:
+            print('Expert optimizer missing')
+
+        self.optimizer_gate.zero_grad(set_to_none=True)
+        gate_loss_criterion = moe_models.expert_entropy_loss()
+        gate_loss = gate_loss_criterion(expert_outputs=expert_outputs.detach(), gate_outputs=gate_outputs, targets=labels)
+        gate_loss.backward()
+        
+        self.optimizer_experts.step()
+        self.optimizer_gate.step()
+        
+        moe_loss_criterion = moe_models.cross_entropy_loss()
+        loss = moe_loss_criterion(outputs=outputs, targets=labels)
+        
+        return loss
+
     
 # The moe architecture that outputs an expected output of the experts
 # based on the gate probabilities
 class moe_models_base(nn.Module):
     
-    def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, experts=None, gate=None, task='classification', device = torch.device("cpu")):
+    def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, softmax=True, experts=None, gate=None, task='classification', device = torch.device("cpu")):
         super(moe_models_base,self).__init__()
         self.num_experts = num_experts
         self.num_classes = num_classes
@@ -82,7 +115,7 @@ class moe_models_base(nn.Module):
         self.gate_outputs = None
         self.attention = attention_flag
         if self.attention:
-            self.attn = moe_models.attention(hidden).to(device)
+            self.attn = moe_models.attention(hidden, softmax).to(device)
         self.task = task
         self.device = device
         
@@ -90,7 +123,7 @@ class moe_models_base(nn.Module):
     def update_lr(self, optimizer, lr):
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
-
+            
     def train(self, trainloader, testloader,
               loss_criterion, optimizer=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,

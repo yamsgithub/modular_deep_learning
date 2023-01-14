@@ -10,6 +10,6 @@ echo "MNN_HOME  : $MNN_HOME"
 export PYTHONPATH=$MNN_HOME
 echo "PYTHONPATH: $PYTHONPATH"
 
-deactivate
-source mnn/bin/activate
+conda deactivate
+conda activate mnn
 jupyter lab
