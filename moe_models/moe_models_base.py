@@ -50,13 +50,12 @@ class two_temp_optim:
 class default_optimizer:
     def __init__(self, optimizer_moe=None, optimizer_gate=None, optimizer_experts=None):
         self.optimizer_moe = optimizer_moe
-        self.optimizer_gate = optimizer_gate
-        self.optimizer_experts = optimizer_experts
         
     def optimise(self, model=None, inputs=None, labels=None, outputs=None, expert_outputs=None, gate_outputs=None, 
                  loss_criterion=None, regularization=0.0, T=1.0):
         # zero the parameter gradients
         self.optimizer_moe.zero_grad(set_to_none=True)
+        
         loss = loss_criterion(outputs, expert_outputs, gate_outputs, labels)
         if not regularization == 0: 
             loss += regularization   
@@ -99,6 +98,28 @@ class expert_loss_gate_optimizer:
         
         return loss
 
+def default_distance_funct(inputs):
+    batch_size = len(inputs) # batch size
+    # sum up the channels to make the images 2D
+    imgs = inputs.view(batch_size,-1)
+    dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
+    # normalize
+    dist = dist/torch.max(dist)
+    
+    return dist
+
+class resnet_distance_funct:
+    
+    def __init__(self, resnet_model=None):
+        self.resnet_model = resnet_model
+    
+    def distance_funct(self, inputs):
+        batch_size = len(inputs)
+        features = self.resnet_model(inputs)
+        dist = torch.cdist(features, features, compute_mode='donot_use_mm_for_euclid_dist')
+        # normalize
+        dist = dist/torch.max(dist)
+        return dist
     
 # The moe architecture that outputs an expected output of the experts
 # based on the gate probabilities
@@ -110,7 +131,9 @@ class moe_models_base(nn.Module):
         self.num_classes = num_classes
         self.augment = augment
         self.experts = experts.to(device)
-        self.gate = gate.to(device)
+        self.gate = gate
+        if not gate is None:
+            self.gate = gate.to(device)
         self.expert_outputs = None
         self.gate_outputs = None
         self.attention = attention_flag
@@ -127,7 +150,7 @@ class moe_models_base(nn.Module):
     def train(self, trainloader, testloader,
               loss_criterion, optimizer=None, 
               w_importance = 0.0, w_ortho = 0.0, w_ideal_gate = 0.0,
-              w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0,  w_exp_gamma = 0.0,
+              w_sample_sim_same = 0.0, w_sample_sim_diff = 0.0, distance_funct = default_distance_funct,
               T=[1.0]*20, T_decay=0.0, T_decay_start=0, no_gate_T = [1.0]*20,
               accuracy=None, epochs=10, model_name='moe_expectation_model'):
 
@@ -193,11 +216,12 @@ class moe_models_base(nn.Module):
                 per_exp_avg_wts[i] = per_exp_avg_wts[i]/num_params
 
             gate_avg_wts = 0.0
-            num_params = 0
-            for param in self.gate.parameters():
-                gate_avg_wts = gate_avg_wts + param.mean()
-                num_params += 1
-            gate_avg_wts = gate_avg_wts/num_params
+            if not self.gate is None:
+                num_params = 0
+                for param in self.gate.parameters():
+                    gate_avg_wts = gate_avg_wts + param.mean()
+                    num_params += 1
+                gate_avg_wts = gate_avg_wts/num_params
 
             all_labels = []
             
@@ -208,7 +232,7 @@ class moe_models_base(nn.Module):
                 all_labels.append(labels)
 
                 if model_name == 'moe_no_gate_model':
-                    outputs = self(inputs, no_gate_T[epoch])
+                    outputs = self(inputs, targets=labels, T=no_gate_T[epoch])
                 else:
                     outputs = self(inputs)
     
@@ -223,13 +247,9 @@ class moe_models_base(nn.Module):
                 regularization = 0.0
 
                 if w_sample_sim_same > 0.0 or w_sample_sim_diff > 0.0:
-
-                   batch_size = len(inputs) # batch size
-                   # sum up the channels to make the images 2D
-                   imgs = inputs.view(batch_size,-1)
-                   dist = torch.cdist(imgs, imgs, compute_mode='donot_use_mm_for_euclid_dist')
-                   # normalize
-                   dist = dist/torch.max(dist)
+                   batch_size = len(inputs)
+                   dist = distance_funct(inputs)
+                
                    sample_dist = 0
                    
                    pex_dist_same = torch.zeros(batch_size, batch_size).to(self.device)
@@ -287,7 +307,10 @@ class moe_models_base(nn.Module):
                 running_loss += loss
 
                 with torch.no_grad():
-                   outputs = self(inputs)
+                    if model_name == 'moe_no_gate_model':
+                        outputs = self(inputs, targets=labels, T=no_gate_T[epoch])
+                    else:
+                        outputs = self(inputs)
                 
                 acc = accuracy(outputs, labels)
                 train_running_accuracy += acc
@@ -341,7 +364,11 @@ class moe_models_base(nn.Module):
                 test_gate_probabilities = []
                 for test_inputs, test_labels in testloader:
                	    test_inputs, test_labels = test_inputs.to(self.device, non_blocking=True), test_labels.to(self.device, non_blocking=True)                
-                    test_outputs = self(test_inputs)
+                    with torch.no_grad():
+                        if model_name == 'moe_no_gate_model':
+                            test_outputs = self(test_inputs, targets=test_labels, T=no_gate_T[epoch])
+                        else:
+                            test_outputs = self(test_inputs)
                     test_gate_outputs = self.gate_outputs
                     test_expert_outputs = self.expert_outputs
                     test_gate_probabilities.append(test_gate_outputs)
