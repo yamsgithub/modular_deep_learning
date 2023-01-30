@@ -44,14 +44,8 @@ class moe_top_k_model(moe_models_base):
       
         if self.k==1:
             p = F.softmax(p, dim=1)
-            # selected_experts = torch.argmax(p, dim=1)
             selected_experts = torch.topk(p,self.k,dim=1).indices
-            # print('selected experts', selected_experts)
-            # values = torch.empty(selected_experts.shape,dtype=torch.bool).reshape(p.shape[0], 1).fill_(False).to(self.device)
-            # mask = torch.scatter(mask, 1, selected_experts,values)
-            # self.gate_outputs = torch.masked_fill(p, mask, float("-inf"))
             self.gate_outputs = p
-            # output = y[torch.arange(y.shape[0]).type_as(selected_experts), selected_experts]
         else:
             selected_experts = torch.topk(p,self.k,dim=1).indices
             values = torch.empty(selected_experts.shape,dtype=torch.bool).fill_(False).to(self.device)
@@ -61,24 +55,21 @@ class moe_top_k_model(moe_models_base):
             self.gate_outputs = F.softmax(self.gate_outputs, dim=1)
             p = self.gate_outputs
 
-            # print('p', p)
-
-            # repeat probabilities number of classes times so
-            # dimensions correspond            
-        p = p.reshape(p.shape[0],p.shape[1], 1)
+        # repeat probabilities number of classes times so
+        # dimensions correspond  
+        p = p.reshape(p.shape[0],p.shape[1], 1)        
         p = p.repeat(1,1,y.shape[2])
-
-        # print('selected gate outputs', p[torch.arange(p.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts],
-              # p[torch.arange(p.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts].shape)
-        # expected sum of expert outputs
+        
         output = p[torch.arange(p.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts]*y[torch.arange(y.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts]
 
         if self.k > 1:
             output = torch.sum(output, 1)
         else:
-            output = output.squeeze()
-            
-        # print(output.shape)
+            # print('BEFORE output', output)
+            output = F.softmax(output.squeeze(), dim=1)
+            # print('AFTER output', output)
         
+        # print('o',output[0], 'o sum',torch.sum(output[0]))
+                   
         return output
     
