@@ -7,7 +7,6 @@
 .PHONY = all clean
 SHELL := /bin/bash
 
-VIRTUAL_ENV_TARGET := mnn
 
 # Makefile commands, see below for actual builds
 
@@ -25,17 +24,15 @@ help                : Makefile
 	@sed -n 's/^## //p' $<
 
 ## virtual_env        : Install/update a virtual environment with needed packages
-virtual_env: $(VIRTUAL_ENV_TARGET)
 
 install_torch:
-	source mnn/bin/activate; \
-	pip install torch==1.6.0+cu101 torchvision==0.7.0+cu101 -f https://download.pytorch.org/whl/torch_stable.html || pip install torch==1.10.2 torchvision==0.11.2;
+	conda activate mnn; \
+        conda install pytorch==1.10.1 torchvision==0.11.2 torchaudio==0.10.1 cudatoolkit=11.1 -c pytorch -c conda-forge;
 
 # Actual Target work here
 
-$(VIRTUAL_ENV_TARGET):
-	python -m venv mnn; \
-	source mnn/bin/activate; \
+virtual_env:
+	conda activate mnn; \
 	pip install --upgrade pip; \
 	pip install setuptools --upgrade; \
         pip install  -r requirements.linux.txt; \
