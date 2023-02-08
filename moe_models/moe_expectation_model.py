@@ -13,7 +13,6 @@ class moe_expectation_model(moe_models_base):
     
     def __init__(self, num_experts=5, num_classes=10, augment=0, attention_flag=0, hidden=None, softmax=True, experts=None, gate=None, task='classification',device = torch.device("cpu")):
         super(moe_expectation_model,self).__init__(num_experts, num_classes, augment, attention_flag, hidden, softmax, experts, gate, task, device)
-        self.device = device
         
     def forward(self,inputs, T=1.0):
 
@@ -25,7 +24,6 @@ class moe_expectation_model(moe_models_base):
             if self.attention:
                 hidden_output = expert.hidden
                 h.append(hidden_output.view(1,-1,hidden_output.shape[1]))
-
                 
         y = torch.vstack(y).transpose_(0,1).to(self.device)
         
