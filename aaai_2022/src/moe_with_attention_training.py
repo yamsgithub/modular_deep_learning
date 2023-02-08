@@ -30,7 +30,7 @@ else:
 from moe_models.moe_expectation_model import moe_expectation_model
 from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_top_k_model import moe_top_k_model
-from moe_models.moe_models_base import default_optimizer
+from moe_models.moe_models_base import default_optimizer, default_distance_funct, resnet_distance_funct
 from helper.moe_models import cross_entropy_loss, stochastic_loss
 from helper.visualise_results import *
 
@@ -62,6 +62,7 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
                          expert_layers=None, gate_layers=None, 
                          runs=1, temps=[[1.0]*20], w_importance_range=[0], 
                          w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
+                         distance_funct = default_distance_funct,
                          hidden=32, num_classes=10, total_experts=5, num_epochs=20, model_path=None):
     
     hidden = hidden
@@ -112,6 +113,7 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
                 hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
                                        T = T, w_importance=w_importance, 
                                        w_sample_sim_same = w_sample_sim_same, w_sample_sim_diff = w_sample_sim_diff, 
+                                       distance_funct = default_distance_funct,
                                        accuracy=accuracy, epochs=num_epochs)
                 val['experts'][total_experts] = {'model':moe_model, 'history':hist}
             
