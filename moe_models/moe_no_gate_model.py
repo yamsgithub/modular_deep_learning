@@ -10,17 +10,58 @@ from sklearn.metrics import confusion_matrix
 from helper import moe_models
 from moe_models.moe_models_base import moe_models_base
 
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
+def entropy(x, y):
+    p = x[torch.arange(x.shape[0]).type_as(y),y]
+    eps=1e-15
+    return -1*torch.log2(p+eps)
+    
+class moe_no_gate_self_information_model(moe_models_base):
 
-class moe_no_gate_model(moe_models_base):
+    def __init__(self, output_type='argmax', num_experts=5, num_classes=10, experts=None, gate=None, 
+                 task='classification', device = torch.device("cpu")):
+        super(moe_no_gate_self_information_model,self).__init__(num_experts=num_experts, num_classes=num_classes, experts=experts, 
+                                                gate=gate, task=task, device=device)
+        self.argmax = False
+        self.stochastic = False
+        self.expectation = False
 
-    def __init__(self, output_type='argmax', num_experts=5, num_classes=10, experts=None, gate=None, task='classification'):
-        super( moe_no_gate_model,self).__init__(num_experts=num_experts, num_classes=num_classes, experts=experts, gate=gate, task=task)
+        if output_type == 'argmax':
+            self.argmax = True
+        elif output_type == 'stochastic':
+            self.stochastic = True
+        elif output_type == 'expectation':
+            self.expectation = True
+            
+    def forward(self, inputs, targets=None, T=1.0):
+        
+        y = []
+        h = []
+        for i, expert in enumerate(self.experts):
+            expert_output = expert(inputs)
+            y.append(expert_output.view(1,-1,self.num_classes))
+            expert_entropy = entropy(expert_output, targets)
+            h.append(expert_entropy)
+
+        y = torch.vstack(y).transpose_(0,1).to(self.device)
+        self.expert_outputs = y
+        
+        h = torch.vstack(h).transpose_(0,1).to(self.device)
+        self.per_sample_entropy = h
+        p = F.softmin(h/T, dim=1).detach()
+                
+        self.gate_outputs = p
+
+        self.samples = torch.argmax(p, dim=1).to(self.device)
+            
+        output = y[torch.arange(y.shape[0]).type_as(self.samples), self.samples, :].squeeze()
+
+        return output
+
+
+class moe_no_gate_entropy_model(moe_models_base):
+
+    def __init__(self, output_type='argmax', num_experts=5, num_classes=10, experts=None, gate=None, task='classification',device = torch.device("cpu")):
+        super( moe_no_gate_entropy_model,self).__init__(num_experts=num_experts, num_classes=num_classes, experts=experts, gate=gate, task=task, device=device)
         self.argmax = False
         self.stochastic = False
         self.expectation = False
@@ -32,7 +73,7 @@ class moe_no_gate_model(moe_models_base):
         elif output_type == 'expectation':
             self.expectation = True
 
-    def forward(self, inputs, T=1.0):
+    def forward(self, inputs, targets=None, T=1.0):
 
         batch_size = inputs.shape[0]
         
@@ -44,18 +85,17 @@ class moe_no_gate_model(moe_models_base):
             expert_entropy = moe_models.entropy(expert_output, reduction='none')
             h.append(expert_entropy)
 
-        y = torch.vstack(y).transpose_(0,1).to(device)
+        y = torch.vstack(y).transpose_(0,1).to(self.device)
         self.expert_outputs = y
         
-        h = torch.vstack(h).transpose_(0,1).to(device)
+        h = torch.vstack(h).transpose_(0,1).to(self.device)
 
-        # TESTING: using the scalar weights. 
+        self.per_sample_entropy = h
+        
         p = F.softmin(h/T, dim=1).detach()
 
         self.gate_outputs = p
         
-        gate_entropy = moe_models.entropy(p, reduction='none')
-
         if self.expectation:
             # reshape gate output so probabilities correspond 
             # to each expert
@@ -71,13 +111,15 @@ class moe_no_gate_model(moe_models_base):
             try:
                 if self.stochastic:
                     m  = Categorical(p)
-                    self.samples = m.sample().reshape(len(p), 1).to(device)
+                    self.samples = m.sample().reshape(len(p), 1).to(self.device)
                 elif self.argmax:
-                    self.samples = torch.argmax(p, dim=1).to(device)
+                    self.samples = torch.argmax(p, dim=1).to(self.device)
             except:
                 raise
             
-            output = y[torch.arange(0,batch_size).reshape(batch_size,1).to(device), self.samples.reshape(batch_size,1).to(device), :].squeeze()
+            # output = y[torch.arange(0,batch_size).reshape(batch_size,1).to(self.device), self.samples.reshape(batch_size,1).to(self.device), :].squeeze()
+            
+            output = y[torch.arange(y.shape[0]).type_as(self.samples), self.samples, :].squeeze()
 
         return output
 
