@@ -18,12 +18,11 @@ import torchvision.transforms.functional as TF
 from torch.distributions.categorical import Categorical
 
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
+    device = torch.device("cuda")   
 else:
     device = torch.device("cpu")
-    print('device', device)
 
+print('device', device)
 
 # import MoE expectation model. All experiments for this dataset are done with the expectation model as it
 # provides the best performance
@@ -101,10 +100,12 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
                 if k > 0:
                     moe_model = val['model'](k, total_experts, num_classes, 
                                              attention_flag=1, hidden=hidden, 
-                                             experts=expert_models, gate=gate_model, device=device).to(device)
+                                             experts=expert_models, gate=gate_model, device=device)
                 else:
                     moe_model = val['model'](total_experts, num_classes, attention_flag=1, hidden=hidden, 
-                                         experts=expert_models, gate=gate_model, device=device).to(device)
+                                         experts=expert_models, gate=gate_model, device=device)
+                    
+                moe_model.to(device)
 
                 optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
                 
