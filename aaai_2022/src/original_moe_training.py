@@ -20,13 +20,14 @@ from torch.distributions.categorical import Categorical
 device = torch.device("cpu")
 
 if torch.cuda.is_available():
-    device = torch.device("cuda:0")
+    device = torch.device("cuda")
 
 print('device', device)
 
 # import MoE expectation model. All experiments for this dataset are done with the expectation model as it
 # provides the best performance
 from moe_models.moe_expectation_model import moe_expectation_model
+from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_top_k_model import moe_top_k_model
 from moe_models.moe_models_base import default_optimizer, default_distance_funct, resnet_distance_funct
 from helper.moe_models import cross_entropy_loss, stochastic_loss
@@ -57,6 +58,7 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                          num_classes=10, total_experts=5, num_epochs=20, model_path=None):
 
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device)),
+                       'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device)),
                        'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device)),
                        'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device))}
 
@@ -91,16 +93,17 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                 
                 if k > 0:
                     moe_model = val['model'](k, total_experts, num_classes,
-                                             experts=expert_models, gate=gate_model, device=device).to(device)
+                                             experts=expert_models, gate=gate_model, device=device)
                 else:
                     moe_model = val['model'](num_experts=total_experts, num_classes=num_classes,
-                                         experts=expert_models, gate=gate_model, device=device).to(device)
+                                         experts=expert_models, gate=gate_model, device=device)
+                    
+                moe_model.to(device)
                 
                 optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False, weight_decay=1e-3)
                 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
 
-               
                 hist = moe_model.train(trainloader=trainloader, testloader=testloader,  
                                        loss_criterion=val['loss'], optimizer = optimizer,
                                        T = T, w_importance=w_importance, w_sample_sim_same = w_sample_sim_same, 

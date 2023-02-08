@@ -82,8 +82,6 @@ print('Num epochs:', num_epochs)
 print('importance factor:', w_importance_range[0])
 print('sample similarity factor:', w_sample_sim_same_range[0])
 print('sample dissimilarity factor:', w_sample_sim_diff_range[0])
-print('sample distance function', d)
-
 
 num_classes = 10
 
@@ -95,17 +93,23 @@ if not os.path.exists(model_path):
     os.mkdir(model_path)
 
 if d == 'resnet_distance_funct':
+    print('sample distance function: resnet_distance_funct')
     model_state = torch.load(os.path.join(model_path, 'resnet.ckpt'))
     model = resnet18(pretrained=True).to(device)
     model.load_state_dict(model_state)
+    # model = nn.DataParallel(model)
+    model.to(device)
+    model.eval()
     distance_funct = resnet_distance_funct(model).distance_funct
     
 elif d == 'wideres_distance_funct':
+    print('sample distance function: wideres_distance_funct') 
     number_of_layers = 40
     model = WideResNet(depth=number_of_layers, num_classes=10, widen_factor=4)
     checkpoint = torch.load('WideResNet-pytorch-master/runs/WideResNet-28-10/cifar10.pth.tar')
     model.load_state_dict(checkpoint['state_dict'])
-    model = model.to(device)
+    # model = nn.DataParallel(model)
+    model.to(device)
     model.eval()
     distance_funct = resnet_distance_funct(model).distance_funct
 

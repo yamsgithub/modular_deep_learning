@@ -175,6 +175,7 @@ class moe_models_base(nn.Module):
         gate_probabilities_all_epochs_T = []
         curr_lr = 0.001
         for epoch in range(epochs):  # loop over the dataset multiple times
+            
             num_batches = 0
             running_loss = 0.0
             running_loss_importance = 0.0
@@ -226,12 +227,15 @@ class moe_models_base(nn.Module):
             all_labels = []
             
             for inputs, labels in trainloader:
+                
+                nn.Module.train(self)
+                
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = inputs.to(self.device, non_blocking=True), labels.to(self.device, non_blocking=True)
                 
                 all_labels.append(labels)
 
-                if model_name == 'moe_no_gate_model':
+                if 'no_gate' in model_name:
                     outputs = self(inputs, targets=labels, T=no_gate_T[epoch])
                 else:
                     outputs = self(inputs)
@@ -241,7 +245,7 @@ class moe_models_base(nn.Module):
 
                 expert_outputs_epoch.append(expert_outputs)
                 gate_probabilities.append(gate_outputs)
-                if model_name == 'moe_no_gate_model':
+                if 'no_gate' in model_name:
                     sample_entropies.append(self.per_sample_entropy)
 
                 regularization = 0.0
@@ -305,10 +309,12 @@ class moe_models_base(nn.Module):
                    running_entropy_T += moe_models.entropy(gate_probabilities_batch_high_T)                   
 
                 running_loss += loss
-
+                
+                nn.Module.train(self, mode=False)
+                
                 with torch.no_grad():
-                    if model_name == 'moe_no_gate_model':
-                        outputs = self(inputs, targets=labels, T=no_gate_T[epoch])
+                    if 'no_gate' in model_name:
+                        outputs = self(inputs, targets=labels)
                     else:
                         outputs = self(inputs)
                 
@@ -357,7 +363,7 @@ class moe_models_base(nn.Module):
                 num_batches+=1
  
             mutual_EY, H_EY, H_E, H_Y = moe_models.mutual_information(ey.detach())
-
+            
             with torch.no_grad():
                 acc = 0.0
                 j = 0
@@ -365,8 +371,8 @@ class moe_models_base(nn.Module):
                 for test_inputs, test_labels in testloader:
                	    test_inputs, test_labels = test_inputs.to(self.device, non_blocking=True), test_labels.to(self.device, non_blocking=True)                
                     with torch.no_grad():
-                        if model_name == 'moe_no_gate_model':
-                            test_outputs = self(test_inputs, targets=test_labels, T=no_gate_T[epoch])
+                        if 'no_gate' in model_name:
+                            test_outputs = self(test_inputs, targets=test_labels)
                         else:
                             test_outputs = self(test_inputs)
                     test_gate_outputs = self.gate_outputs
@@ -398,7 +404,7 @@ class moe_models_base(nn.Module):
 
             test_gate_probabilities = torch.vstack(test_gate_probabilities)
 
-            if model_name == 'moe_no_gate_model':
+            if 'no_gate' in model_name:
                 sample_entropies = torch.vstack(sample_entropies)
             
             # baseline_losses = []
@@ -436,7 +442,7 @@ class moe_models_base(nn.Module):
             history['val_accuracy'].append(test_running_accuracy)
             history['sample_entropy'].append(running_entropy)
             history['entropy'].append(moe_models.entropy(torch.mean(gate_probabilities, dim=0)))
-            if model_name == 'moe_no_gate_model':
+            if 'no_gate' in model_name:
                 history['per_sample_entropy'].append(sample_entropies)
                 
             if self.task == 'classification':

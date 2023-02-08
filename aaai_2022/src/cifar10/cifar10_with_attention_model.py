@@ -1,4 +1,5 @@
 import argparse
+import sys
 from cifar10_moe_with_attention_training import *
 from moe_with_attention_training import *
 from torchvision.models import resnet18
@@ -99,20 +100,26 @@ if not os.path.exists(model_path):
     os.mkdir(model_path)
 
 if d == 'resnet_distance_funct':
+    print('sample distance function: resnet_distance_funct')
     model_state = torch.load(os.path.join(model_path, 'resnet.ckpt'))
     model = resnet18(pretrained=True).to(device)
     model.load_state_dict(model_state)
+    # model = nn.DataParallel(model)
+    model.to(device)
+    model.eval()
     distance_funct = resnet_distance_funct(model).distance_funct
+    
+    
 elif d == 'wideres_distance_funct':
+    print('sample distance function: wideres_distance_funct') 
     number_of_layers = 40
     model = WideResNet(depth=number_of_layers, num_classes=10, widen_factor=4)
     checkpoint = torch.load('WideResNet-pytorch-master/runs/WideResNet-28-10/cifar10.pth.tar')
     model.load_state_dict(checkpoint['state_dict'])
-    model = model.to(device)
+    # model = nn.DataParallel(model)
+    model.to(device)
     model.eval()
     distance_funct = resnet_distance_funct(model).distance_funct
-
-print('sample distance function', distance_funct)
 
 train_with_attention(m, mt, k, cifar10_trainloader, cifar10_testloader, 
                      expert_layers=expert_layers_type, gate_layers=gate_layers_type,
