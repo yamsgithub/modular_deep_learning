@@ -46,23 +46,34 @@ test_transform = transforms.Compose([
     transforms.Normalize(*stats)
 ])
 
-working_path = '/nobackup/projects/bdrap03/yamuna/modular_deep_learning/aaai_2022/src/cifar10'
+working_path = '/gpfs/data/fs71921/yamunak'
 
-cifar10_trainset = torchvision.datasets.CIFAR10(root=os.path.join(working_path, 'data'), train=True, download=True, transform=train_transform)
-cifar10_testset = torchvision.datasets.CIFAR10(root=os.path.join(working_path, 'data'), train=False, download=True, transform=test_transform)
+cifar10_trainset = torchvision.datasets.CIFAR10(root=working_path, train=True, download=True, transform=train_transform)
+cifar10_testset = torchvision.datasets.CIFAR10(root=working_path, train=False, download=True, transform=test_transform)
 cifar10_testset, cifar10_trainset
 
 num_classes = 10
 
-trainsize = 50000
+trainsize = 40000
+valsize = 10000
 testsize =10000
 
 batch_size = 256
 
-cifar10_trainloader = torch.utils.data.DataLoader(torch.utils.data.Subset(cifar10_trainset, range(trainsize)), batch_size=batch_size,
-                                          shuffle=True, num_workers=2, pin_memory=True)
-cifar10_testloader = torch.utils.data.DataLoader(torch.utils.data.Subset(cifar10_testset, range(testsize)), batch_size=batch_size,
-                                         shuffle=True, num_workers=2, pin_memory=True)
+torch.manual_seed(0)
+cifar10_train_set, cifar10_val_set = torch.utils.data.random_split(cifar10_trainset, [trainsize, valsize])
+
+cifar10_trainloader = torch.utils.data.DataLoader(torch.utils.data.Subset(cifar10_train_set, range(trainsize)),
+                                                  batch_size=batch_size,
+                                                  shuffle=True, num_workers=2, pin_memory=True)
+
+cifar10_valloader = torch.utils.data.DataLoader(torch.utils.data.Subset(cifar10_val_set, range(valsize)),
+                                                  batch_size=batch_size,
+                                                  shuffle=True, num_workers=2, pin_memory=True)
+
+cifar10_testloader = torch.utils.data.DataLoader(torch.utils.data.Subset(cifar10_testset, range(testsize)), 
+                                                 batch_size=batch_size,
+                                                 shuffle=True, num_workers=2, pin_memory=True)
 
 classes_cifar10 = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck']
 
