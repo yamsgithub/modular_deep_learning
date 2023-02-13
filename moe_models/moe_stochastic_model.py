@@ -16,9 +16,14 @@ class moe_stochastic_model(moe_models_base):
         
     def forward(self,inputs, T=1.0):
         y = []
+        h = []
         for i, expert in enumerate(self.experts):
             expert_output = expert(inputs)
             y.append(expert_output.view(1,-1,self.num_classes))
+            if self.attention:
+                hidden_output = expert.hidden
+                h.append(hidden_output.view(1,-1,hidden_output.shape[1]))
+                
         y = torch.vstack(y).transpose_(0,1).to(self.device)
 
         self.expert_outputs = y
@@ -27,6 +32,14 @@ class moe_stochastic_model(moe_models_base):
                 context = self.attn(inputs, y)
                 input_aug = torch.cat((inputs, context.squeeze(1)), dim=1)
                 p = self.gate(input_aug, T)
+            elif self.attention:
+                h = torch.vstack(h).transpose_(0,1).to(self.device)
+                h_gate = self.gate(inputs)
+
+                attention = self.attn(h, h_gate)
+
+                # attention scores are the gate output
+                p = attention 
             else:
                 p = self.gate(inputs, T)
 
@@ -34,7 +47,6 @@ class moe_stochastic_model(moe_models_base):
             
             if self.training:
                 m  = Categorical(p)
-                # self.samples = m.sample().reshape(len(p), 1).to(self.device)
                 self.samples = m.sample().to(self.device)
             else:
                 self.samples = torch.argmax(p, dim=1).to(self.device)

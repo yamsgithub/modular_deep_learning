@@ -116,9 +116,7 @@ class moe_no_gate_entropy_model(moe_models_base):
                     self.samples = torch.argmax(p, dim=1).to(self.device)
             except:
                 raise
-            
-            # output = y[torch.arange(0,batch_size).reshape(batch_size,1).to(self.device), self.samples.reshape(batch_size,1).to(self.device), :].squeeze()
-            
+                        
             output = y[torch.arange(y.shape[0]).type_as(self.samples), self.samples, :].squeeze()
 
         return output
