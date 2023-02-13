@@ -8,14 +8,6 @@
 
 from cifar10_original_moe_training import *
 
-# Paths to where the trained models and figures will be stored. You can change this as you see fit.
-working_path = '/nobackup/projects/bdrap03/yamuna/modular_deep_learning/aaai_2022/src/cifar10'
-model_path = os.path.join(working_path, '../../models')
-
-if not os.path.exists(model_path):
-    os.mkdir(model_path)
-
-
 # Convolutional network with one convolutional layer and 2 hidden layers with ReLU activation
 class gate_attn_layers(nn.Module):
     def __init__(self, num_experts):
