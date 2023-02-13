@@ -15,6 +15,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torchvision.transforms.functional as TF
 
+from helper.visualise_results import *
+
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
     print('device', device)
