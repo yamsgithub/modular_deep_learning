@@ -47,7 +47,8 @@ mnist_transform = transforms.Compose(
     transforms.Normalize((0.1307,), (0.3081,))]) #mean and standard deviation computed from the dataset
 
 # Complete train and test data
-trainsize = 60000
+trainsize = 50000
+valsize = 10000
 testsize = 10000
 
 batch_size = 512
@@ -66,7 +67,15 @@ testset = torchvision.datasets.MNIST('./data',
     target_transform = torch.tensor,)
 
 # dataloaders
-trainloader = torch.utils.data.DataLoader(torch.utils.data.Subset(trainset, range(trainsize)), 
+
+torch.manual_seed(0)
+train_set, val_set = torch.utils.data.random_split(trainset, [trainsize, valsize])
+
+trainloader = torch.utils.data.DataLoader(torch.utils.data.Subset(train_set, range(trainsize)), 
+                                          batch_size=batch_size,
+                                          shuffle=True)
+
+valloader = torch.utils.data.DataLoader(torch.utils.data.Subset(val_set, range(valsize)), 
                                           batch_size=batch_size,
                                           shuffle=True)
 
@@ -77,7 +86,8 @@ num_classes = 10
 
 image, label = trainset.__getitem__(0)
 print('Image shape', image.shape)
-print('Train samples ', len(trainset))
+print('Train samples ', len(train_set))
+print('Validation samples', len(val_set))
 print('Test samples ', len(testset))
 
 
