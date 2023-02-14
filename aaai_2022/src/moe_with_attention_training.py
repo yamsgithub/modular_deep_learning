@@ -18,7 +18,7 @@ import torchvision.transforms.functional as TF
 from torch.distributions.categorical import Categorical
 
 if torch.cuda.is_available():
-    device = torch.device("cuda")   
+    device = torch.device("cuda:0")   
 else:
     device = torch.device("cpu")
 
@@ -134,8 +134,16 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
 
 # ### Function to distill the attentive gate model to the original model
         
-def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_range=[0.0], w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
-                     trainloader=None, testloader=None, expert_no_grad=True, gate_no_grad=False):
+def train_from_model(m, model_name, k=0, trainloader=None, testloader=None, 
+                     expert_layers=None, gate_layers=None, w_importance_range=[0.0], 
+                     w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
+                     expert_no_grad=True, gate_no_grad=False, 
+                     num_classes=10, total_experts=5, num_epochs=20, model_path=None):
+    
+    moe_model_types = {'moe_expectation_model':(moe_expectation_model,cross_entropy_loss().to(device)),
+                       'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device)),
+                       'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device))
+                      }
     
     T = [1.0]*num_epochs
     for w_importance, w_sample_sim_same, w_sample_sim_diff in product(w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
@@ -163,8 +171,8 @@ def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_ran
         for model in attn_models: 
             # Initialise the new expert weights to the weights of the experts of the trained attentive gate model.
             # Fix all the weights of the new experts so they are not trained.
-            new_expert_models = experts(total_experts, num_classes).to(device)
-            old_expert_models = model['moe_expectation_model']['experts'][total_experts]['model'].experts
+            new_expert_models =  experts(total_experts, num_classes, expert_layers_type=expert_layers).to(device)
+            old_expert_models = model[model_name]['experts'][total_experts]['model'].experts
             for i, expert in enumerate(new_expert_models):
                 old_expert = old_expert_models[i]
                 expert.load_state_dict(old_expert.state_dict())
@@ -174,7 +182,7 @@ def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_ran
 
             # Initialise the new gate weights to the weights of the gate of the trained attentive gate model.
             new_gate_model = gate_layers(total_experts).to(device)
-            old_gate_model = model['moe_expectation_model']['experts'][total_experts]['model'].gate
+            old_gate_model = model[model_name]['experts'][total_experts]['model'].gate
             new_gate_model.load_state_dict(old_gate_model.state_dict(), strict=False)
 
             if gate_no_grad:
@@ -184,8 +192,9 @@ def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_ran
                 
             gate_model = new_gate_model
 
-            models = {'moe_expectation_model':{'model':moe_expectation_model,'loss':cross_entropy_loss(),
-                                           'experts':{}},}
+            models = {model_name:{'model':moe_model_types[model_name][0],
+                                  'loss':moe_model_types[model_name][1],
+                                  'experts':{}},}
 
             for key, val in models.items():
 
@@ -193,6 +202,13 @@ def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_ran
 
                 moe_model = val['model'](total_experts, num_classes,
                                          experts=new_expert_models, gate= gate_model).to(device)
+                
+                if k > 0:
+                    moe_model = val['model'](k, total_experts, num_classes,  
+                                             experts=new_expert_models, gate=gate_model, device=device)
+                else:
+                    moe_model = val['model'](total_experts, num_classes,
+                                         experts=new_expert_models, gate=gate_model, device=device)
 
                 optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
 
@@ -202,7 +218,8 @@ def train_from_model(m, num_epochs, num_classes, total_experts, w_importance_ran
                                        T = T, accuracy=accuracy, epochs=num_epochs)
                 val['experts'][total_experts] = {'model':moe_model, 'history':hist}
 
-            plot_file = generate_plot_file('new_'+m, T[0], w_importance=w_importance, w_sample_sim_same=w_sample_sim_same,w_sample_sim_diff=w_sample_sim_diff,
+            plot_file = generate_plot_file('new_'+m, T[0], w_importance=w_importance,
+                                           w_sample_sim_same=w_sample_sim_same,w_sample_sim_diff=w_sample_sim_diff,
                                            specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
         
             if os.path.exists(os.path.join(model_path, plot_file)):
