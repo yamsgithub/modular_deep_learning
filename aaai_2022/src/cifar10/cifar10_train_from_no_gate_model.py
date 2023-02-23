@@ -77,8 +77,8 @@ print('sample dissimilarity factor:', w_sample_sim_diff_range[0])
 num_classes = 10
 
 # Paths to where the trained models, figures and results will be stored. You can change this as you see fit.
-working_path = '/nobackup/projects/bdrap03/yamuna/modular_deep_learning/aaai_2022/src'
-model_path = os.path.join(working_path, '../models/cifar10')
+working_path = '/gpfs/data/fs71921/yamunak'
+model_path = os.path.join(working_path, 'models/cifar10')
 
 if not os.path.exists(model_path):
     os.mkdir(model_path)
@@ -89,5 +89,5 @@ train_from_no_gate_model(m, k=k, model_name=mt,
                          w_importance_range=w_importance_range,
                          w_sample_sim_same_range=w_sample_sim_same_range, 
                          w_sample_sim_diff_range=w_sample_sim_diff_range,
-                         trainloader=cifar10_trainloader, testloader=cifar10_testloader, 
+                         trainloader=cifar10_trainloader, testloader=cifar10_valloader, 
                          expert_no_grad=True, gate_no_grad=False, model_path=model_path )
