@@ -15,13 +15,12 @@ from torch.utils.data import TensorDataset, random_split
 import torchvision.transforms.functional as TF
 from torch.distributions.categorical import Categorical
 
+device = torch.device("cpu")
+
 if torch.cuda.is_available():
     device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
-
+    
+print()
 
 # import MoE expectation model. All experiments for this dataset are done with the expectation model as it
 # provides the best performance
@@ -47,7 +46,7 @@ def accuracy(out, yb, mean=True):
         return (preds == yb).float()
 
 
-def train_original_model(model, model_name, k=0, trainloader=None, testloader=None, 
+def train_loss_gate_model(model, model_name, k=0, trainloader=None, testloader=None, 
                          expert_layers=None, gate_layers=None, runs=1, temps=[[1.0]*20],
                          w_importance_range=[0.0], w_sample_sim_same_range=[0.0], 
                          w_sample_sim_diff_range=[0.0],
@@ -92,11 +91,11 @@ def train_original_model(model, model_name, k=0, trainloader=None, testloader=No
                     moe_model = val['model'](total_experts, num_classes,
                                          experts=expert_models, gate=gate_model, device=device).to(device)
 
-                optimizer_gate = optim.Adam(gate_model.parameters(), lr=0.001,  amsgrad=False)
+                optimizer_gate = optim.Adam(gate_model.parameters(), lr=0.001,  amsgrad=False, weight_decay=1e-3)
                 params = []
                 for i, expert in enumerate(expert_models):
                     params.append({'params':expert.parameters()})
-                optimizer_experts = optim.Adam(params, lr=0.001,  amsgrad=False)
+                optimizer_experts = optim.Adam(params, lr=0.001,  amsgrad=False, weight_decay=1e-3)
                 optimizer = expert_loss_gate_optimizer(optimizer_gate=optimizer_gate, optimizer_experts=optimizer_experts)
                 
                 hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer, T = T, 
