@@ -178,12 +178,17 @@ def plot_accuracy_by_experts(models, total_experts, save_as):
         plt.close()
 
 
-def generate_plot_file(dataset, temp=1.0,no_gate_T=1.0, w_importance=0.0, w_sample_sim_same=0.0, w_sample_sim_diff=0.0, specific=''):
+def generate_plot_file(dataset, temp=1.0, t_decay=0.0, no_gate_T=1.0, w_importance=0.0, w_sample_sim_same=0.0, w_sample_sim_diff=0.0, specific=''):
     plot_file = dataset
     if w_importance > 0:
         plot_file += '_importance_'+'{:.1f}'.format(w_importance)
     if not temp == 1.0:
         plot_file += '_temp_'+'{:.1f}'.format(temp)
+    if t_decay > 0:
+        if t_decay < 1:
+            plot_file += '_t_decay_'+str(t_decay)
+        else:
+            plot_file += '_t_decay_'+'{:.1f}'.format(t_decay)
     if not no_gate_T == 1.0:
         if w_sample_sim_diff < 1:
             plot_file += '_no_gate_T_'+str(no_gate_T)
@@ -204,7 +209,7 @@ def generate_plot_file(dataset, temp=1.0,no_gate_T=1.0, w_importance=0.0, w_samp
     return plot_file
 
 
-def find_best_model(m, temps=[[1.0]*20], w_importance_range=[],  
+def find_best_model(m, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],  
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
                     total_experts=5, num_classes=10, num_epochs=20, model_path=None, device='cpu'):
 
@@ -217,13 +222,13 @@ def find_best_model(m, temps=[[1.0]*20], w_importance_range=[],
     best_model_file = None
     best_model_index = 0
     if w_importance_range:
-         for T, w_importance in product(temps, w_importance_range):
+         for T, decay, w_importance in product(temps, T_decay, w_importance_range):
         
-              plot_file = generate_plot_file(m, temp=T[0], w_importance=w_importance,
+              plot_file = generate_plot_file(m, temp=T[0], t_decay=decay, w_importance=w_importance,
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
               models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
-              print(plot_file, len(models))
+
               for i, model in enumerate(models):
                   for e_key, e_val in model.items():
                       history = model[e_key]['experts'][total_experts]['history']
@@ -270,9 +275,9 @@ def find_best_model(m, temps=[[1.0]*20], w_importance_range=[],
 
 
 
-def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, temps=[[1.0]*20], w_importance_range=[],
+def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],
                       w_sample_sim_same_range=[], w_sample_sim_diff_range=[], total_experts=5, num_classes=10, 
-                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None, dataset='MNIST', annot=True, best=True, index=0, device='cpu'):
+                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None, dataset='MNIST', annot=True, best=True, index=0, device=torch.device("cpu")):
     
     plt.tight_layout()
     
@@ -280,19 +285,26 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
     fontsize_label = 12
     
     if best:
-        model, model_file, best_model_index = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
-                                                          w_sample_sim_same_range=w_sample_sim_same_range, 
-                                                          w_sample_sim_diff_range=w_sample_sim_diff_range, 
-                                                          num_classes=num_classes, total_experts=total_experts, 
+        model, model_file, best_model_index = find_best_model(m, temps=temps, T_decay=T_decay, 
+                                                              w_importance_range=w_importance_range,
+                                                              w_sample_sim_same_range=w_sample_sim_same_range, 
+                                                              w_sample_sim_diff_range=w_sample_sim_diff_range, 
+                                                              num_classes=num_classes, total_experts=total_experts, 
                                                           num_epochs=num_epochs, model_path=model_path, device=device)
         print('Best model index', best_model_index)
     else:
-        plot_file = generate_plot_file(m, temp=temps[0][0], w_importance=w_importance_range[0],
-                                       w_sample_sim_same=w_sample_sim_same_range[0], 
-                                       w_sample_sim_diff=w_sample_sim_diff_range[0], 
+        w_importance = w_importance_range[0] if w_importance_range else 0.0
+        w_sample_sim_same = w_sample_sim_same_range[0] if w_sample_sim_same_range else 0.0
+        w_sample_sim_diff = w_sample_sim_diff_range[0] if w_sample_sim_diff_range else 0.0
+        
+        plot_file = generate_plot_file(m, temp=temps[0][0], w_importance=w_importance,
+                                       w_sample_sim_same=w_sample_sim_same, 
+                                       w_sample_sim_diff=w_sample_sim_diff, 
                                specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
         model_file = plot_file
-        model = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)[index]
+        models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+        print('Num  models', len(models))
+        model = models[index]
         
     
     print(model_file)
@@ -415,9 +427,9 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
             model_dual_temp_with_attention = None, 
             model_output_reg =None, model_output_imp_reg=None,model_temp_output_reg=None, 
             mnist_attn_output_reg=None, model_sample_sim_reg=None,model_with_exp_reg=None,
-            temps=[1.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
+            temps=[1.0], T_decay=[], w_importance_range=[0.0], w_ortho_range=[0.0], 
             w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
-            total_experts=5, num_classes=10, num_epochs=20, classes=None, testloader=None, figname=None,fig_path=None, model_path=None):
+            total_experts=5, num_classes=10, num_epochs=20, classes=None, testloader=None, figname=None,fig_path=None, model_path=None, device=torch.device("cpu")):
 
     x = []
     hues = []
@@ -442,7 +454,10 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                 y_val_error.append(val_error[-1])
                 y_mi.append(history['mutual_EY'][-1])
                 y_H_EY.append(history['H_EY'][-1])
-                y_sample_H.append(history['sample_entropy'][-1])
+                if 'top_1' in e_key or 'stochastic' in e_key:
+                    y_sample_H.append(torch.tensor(0.0))
+                else:
+                    y_sample_H.append(history['sample_entropy'][-1])
                 y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
 
                 x.append(x_label)
@@ -490,10 +505,10 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
 
                 if name == 'ignore':
                     x_label = 'I '+"{:.1f}".format(w_importance)
-                    label = 'MoE with regularization'
+                    label = 'MoE with importance regularization'
                 else:
                     x_label = 'I '+name+" {:.1f}".format(w_importance)
-                    label = 'MoE '+name+' with regularization'
+                    label = 'MoE '+name+' with importance regularization'
             
                 plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
@@ -505,63 +520,92 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
     w_importance = 0.0
     
     if not model_with_temp is None:
-    
-        m = model_with_temp
+        
+        for name, m in model_with_temp.items():
 
-        for T in temps:   
+            for T in temps:   
+            
+                plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
-            plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+                model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-
-            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
-            # model you build above
-            model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
-
-            for model in model_3:
-                for e_key, e_val in model.items():
-                    history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-torch.vstack(history['accuracy'])
-                    val_error = 1-torch.vstack(history['val_accuracy'])
-                    y_error.append(error[-1])
-                    y_val_error.append(val_error[-1])
-                    y_mi.append(history['mutual_EY'][-1])
-                    y_H_EY.append(history['H_EY'][-1])
-                    y_sample_H.append(history['sample_entropy'][-1])
-                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                    y_sample_H_T.append(history['sample_entropy'][-1])
-                    y_sample_H_T.append(history['sample_entropy_T'][-1])
-                    x.append('T '+"{:.1f}".format(T))
-                    x_temp.append('T '+"{:.1f}".format(T))
-                    x_temp.append('T '+"{:.1f}".format(T))
-                    y_sample_hue.append('Low Temp')
-                    y_sample_hue.append('High Temp')               
-                    hues.append('Moe with dual temp')
+                for model in model_3:
+                    for e_key, e_val in model.items():
+                        history = model[e_key]['experts'][total_experts]['history']
+                        error = 1-torch.vstack(history['accuracy'])
+                        val_error = 1-torch.vstack(history['val_accuracy'])
+                        y_error.append(error[-1])
+                        y_val_error.append(val_error[-1])
+                        y_mi.append(history['mutual_EY'][-1])
+                        y_H_EY.append(history['H_EY'][-1])
+                        y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                        
+                        if 'top_1' in e_key or 'stochastic' in e_key:
+                            y_sample_H.append(torch.tensor(0.0))
+                            y_sample_H_T.append(torch.tensor(0.0))
+                            y_sample_H_T.append(torch.tensor(0.0))
+                        else:
+                            y_sample_H.append(history['sample_entropy'][-1])
+                            y_sample_H_T.append(history['sample_entropy'][-1])
+                            y_sample_H_T.append(history['sample_entropy_T'][-1])
+                        
+                        if name == 'ignore':
+                            x_label = 'T '+"{:.1f}".format(T)
+                            label = 'MoE'
+                        else:
+                            x_label = 'T ' + name + " {:.1f}".format(T)
+                            label = 'MoE ' + name
+                        x.append(x_label)
+                        
+                        x_temp.append('T '+"{:.1f}".format(T))
+                        x_temp.append('T '+"{:.1f}".format(T))
+                        y_sample_hue.append('Low Temp')
+                        y_sample_hue.append('High Temp')               
+                        hues.append('Moe with dual temp')
 
     if not model_with_temp_decay is None:
-        m = model_with_temp_decay
+        
+        for name, m in model_with_temp_decay.items():
+            
+            for T in temps:   
 
-        for T in temps:   
+                for decay in T_decay:
 
-            plot_file = generate_plot_file(m, temp=T, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+                    if decay < 1:
+                        D = str(decay)
+                    else:
+                        D = "{:.1f}".format(decay)
 
+                    plot_file = generate_plot_file(m, temp=T, t_decay=decay, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
-            # Note: Here we are loading the pre-trained model from 'pre_trained_model_path. Change this to 'model_path' to load the 
-            # model you build above
-            model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+                    # model you build above
+                    model_3 = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
-            for model in model_3:
-                for e_key, e_val in model.items():
-                    history = model[e_key]['experts'][total_experts]['history']
-                    error = 1-torch.vstack(history['accuracy'])
-                    val_error = 1-torch.vstack(history['val_accuracy'])
-                    y_error.append(error[-1])
-                    y_val_error.append(val_error[-1])
-                    y_mi.append(history['mutual_EY'][-1])
-                    y_H_EY.append(history['H_EY'][-1])
-                    y_sample_H.append(history['sample_entropy'][-1])
-                    y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
-                    x.append('T '+"{:.1f}".format(T)+' D')
-                    hues.append('Moe with dual temp on decay')
+                    for model in model_3:
+                        for e_key, e_val in model.items():
+                            history = model[e_key]['experts'][total_experts]['history']
+                            error = 1-torch.vstack(history['accuracy'])
+                            val_error = 1-torch.vstack(history['val_accuracy'])
+                            y_error.append(error[-1])
+                            y_val_error.append(val_error[-1])
+                            y_mi.append(history['mutual_EY'][-1])
+                            y_H_EY.append(history['H_EY'][-1])
+                            if 'top_1' in e_key or 'stochastic' in e_key:
+                                y_sample_H.append(torch.tensor(0.0))
+                            else:
+                                y_sample_H.append(history['sample_entropy'][-1])
+                            y_expert_usage.append(expert_usage_entropy(history,total_experts,num_epochs))
+                            
+                            if name == 'ignore':
+                                x_label = 'T '+"{:.1f}".format(T) +' D '+ D
+                                label = 'MoE'
+                            else:
+                                x_label = 'T ' + name + " {:.1f}".format(T) +' D '+ D
+                                label = 'MoE ' + name
+
+                            x.append(x_label)
+                       
+                            hues.append('Moe with dual temp on decay')
 
     
     if not model_with_reg_temp is None:
@@ -1268,28 +1312,33 @@ def plot_result_table(model_with_temp, model_with_reg, model_without_reg, temps,
 
 import pandas as pd
 
-def plot_gate_prob(model_name, temps=[1.0], w_importance_range=[0], w_sample_sim_range=[0], 
+def plot_gate_prob(model_name, temps=[1.0], w_importance_range=[0], w_sample_sim_same_range=[0], w_sample_sim_diff_range=[0], 
                    total_experts=5, num_classes=10, classes=None, num_epochs=20, 
-                   testloader=None, caption=None, index=0):
+                   testloader=None, caption=None, index=0, fig_path=None, model_path=None, device=torch.device("cpu")):
     
     m = model_name
     
-    for T, w_importance, w_sample_sim in product(temps, w_importance_range, w_sample_sim_range):
+    for T, w_importance, w_sample_sim_same, w_sample_sim_diff in product(temps, w_importance_range, w_sample_sim_same_range, w_sample_sim_same_range):
                     
         y_gate_prob = {} 
         y_gate_prob_T = {} 
         
         print('Temperature','{:.1f}'.format(T))
         print('Importance','{:.1f}'.format(w_importance))
-        print('Sample sim','{:.1f}'.format(w_sample_sim))
+        print('Sample sim same','{:.1f}'.format(w_sample_sim_same))
+        print('Sample sim diff','{:.1f}'.format(w_sample_sim_diff))
 
-        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance, w_sample_sim=w_sample_sim, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+        plot_file = generate_plot_file(m, temp=T, w_importance=w_importance, 
+                                       w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff, 
+                                       specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+        
+        print('plot_file', plot_file)
 
         model = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)[index]
         palette = sns.color_palette("Set2")
         fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(18, 6))
         fontsize = 20
-        label_fontsize = 15
+        label_fontsize = 16
 
         for e_key, e_val in model.items():
             history = model[e_key]['experts'][total_experts]['history']
@@ -1311,24 +1360,30 @@ def plot_gate_prob(model_name, temps=[1.0], w_importance_range=[0], w_sample_sim
                     labels.append('E'+str(e))
             df = pd.DataFrame(y_gate_prob, index=list(range(1,num_epochs+1)))
             df.plot(kind='bar', stacked=True, color=palette, ax=ax[0])   
+    
             ax[0].legend(loc='upper right') 
-            ax[0].set_ylabel('Number of samples per expert', fontsize=label_fontsize)
+            ax[0].set_ylabel('Sum of gate probability \n distribution per expert\n  for all samples', fontsize=label_fontsize)
             ax[0].set_xlabel('Epochs', fontsize=label_fontsize)
             ax[0].set_title(caption, 
                             loc='center', wrap=True, fontsize=fontsize)
+            ax[0].set_xticks(range(9,num_epochs+1,10))
+            ax[0].tick_params(axis='both', which='major', labelsize=14)
             if T > 1:
                 df_T = pd.DataFrame(y_gate_prob_T, index=list(range(1,num_epochs+1)))            
                 df_T.plot(kind='bar', stacked=True, color=palette, ax=ax[1])
                 ax[1].legend(loc='upper right') 
-                ax[1].set_ylabel('Number of samples per expert', fontsize=label_fontsize)
+                ax[1].set_ylabel('Sum of gate probability \n distribution per expert \n for all samples', fontsize=label_fontsize)
                 ax[1].set_xlabel('Epochs', fontsize=label_fontsize)
-                ax[1].set_title('Distribution of samples to experts by the gate, \n during training, with high temperature (T='+'{:.1f}'.format(T)+')\n', 
-                                loc='center', wrap=True, fontsize=fontsize)
+                ax[1].set_title('Gate probability distribution, during training, \n with high temperature (T='+'{:.1f}'.format(T)+')\n', loc='center', wrap=True, fontsize=fontsize)
+                ax[1].set_xticks(range(9,num_epochs+1,10))
+                ax[1].tick_params(axis='both', which='major', labelsize=14)
             else:
                 ax[1].axis('off')
                 
             plt.tight_layout()
-            plot_file = generate_plot_file(m, temp=T, w_importance=w_importance, w_sample_sim=w_sample_sim, specific=str(num_classes)+'_'+str(total_experts)+'_barplot.png')
+            plot_file = generate_plot_file(m, temp=T, w_importance=w_importance, 
+                                           w_sample_sim_same=w_sample_sim_same, w_sample_sim_diff=w_sample_sim_diff, 
+                                           specific=str(num_classes)+'_'+str(total_experts)+'_barplot.png')
             if T>1:
                 plt.savefig(os.path.join(fig_path, plot_file))
             else:
