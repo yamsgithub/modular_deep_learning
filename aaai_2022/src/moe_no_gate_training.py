@@ -22,6 +22,7 @@ from torch.distributions.categorical import Categorical
 from moe_models.moe_no_gate_model import moe_no_gate_self_information_model, moe_no_gate_entropy_model
 from moe_models.moe_top_k_model import moe_top_k_model
 from moe_models.moe_expectation_model import moe_expectation_model
+from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_models_base import default_optimizer
 from helper.moe_models import cross_entropy_loss, stochastic_loss
 from helper.visualise_results import *
