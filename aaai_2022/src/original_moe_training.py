@@ -20,7 +20,7 @@ from torch.distributions.categorical import Categorical
 device = torch.device("cpu")
 
 if torch.cuda.is_available():
-    device = torch.device("cuda")
+    device = torch.device("cuda:0")
 
 print('device', device)
 
@@ -29,7 +29,7 @@ print('device', device)
 from moe_models.moe_expectation_model import moe_expectation_model
 from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_top_k_model import moe_top_k_model
-from moe_models.moe_models_base import default_optimizer, default_distance_funct, resnet_distance_funct
+from moe_models.moe_models_base import default_optimizer, two_temp_optimizer, default_distance_funct, resnet_distance_funct
 from helper.moe_models import cross_entropy_loss, stochastic_loss
 from helper.visualise_results import *
 
@@ -122,7 +122,84 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
             torch.save(n_run_models_1,open(os.path.join(model_path, plot_file),'wb'))
             n_run_models_1 = []
 
+
+def train_dual_temp_model(model, model_name, k=1, trainloader=None, testloader=None, 
+                         expert_layers=None, gate_layers=None, 
+                         runs=10, temps=[[1.0]*20], T_decay=0.0, T_decay_start=0,               
+                         w_importance_range=[0.0], w_sample_sim_same_range=[0.0], 
+                         w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, 
+                         num_classes=10, total_experts=5, num_epochs=20, model_path=None):
+
+    moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device)),
+                       'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device)),
+                       'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device)),
+                       'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device))}
+
+    for T, w_importance, w_sample_sim_same, w_sample_sim_diff in product(temps, w_importance_range, 
+                                                                         w_sample_sim_same_range,  w_sample_sim_diff_range):
+        
+        print('w_importance','{:.1f}'.format(w_importance))
+        if w_sample_sim_same < 1:
+            print('w_sample_sim_same',str(w_sample_sim_same))
+        else:
+            print('w_sample_sim_same','{:.1f}'.format(w_sample_sim_same))
+        
+        if w_sample_sim_diff < 1:
+            print('w_sample_sim_diff',str(w_sample_sim_diff))
+        else:
+            print('w_sample_sim_diff','{:.1f}'.format(w_sample_sim_diff))
+
+        
+        for run in range(1, runs+1):
             
+            print('Run:', run)
+            
+            n_run_models_1 = []
+            
+            models = {model_name:{'model':moe_model_types[model_name][0],'loss':moe_model_types[model_name][1],
+                                               'experts':{}},}
+            for key, val in models.items():
+
+                expert_models = experts(total_experts, num_classes, expert_layers_type=expert_layers).to(device)
+
+                gate_model = gate_layers(total_experts).to(device)
+                
+                if k > 0:
+                    moe_model = val['model'](k, total_experts, num_classes,
+                                             experts=expert_models, gate=gate_model, device=device)
+                else:
+                    moe_model = val['model'](num_experts=total_experts, num_classes=num_classes,
+                                         experts=expert_models, gate=gate_model, device=device)
+                    
+                moe_model.to(device)
+                
+                optimizer_gate = optim.Adam(gate_model.parameters(), lr=0.001,  amsgrad=False, weight_decay=1e-3)
+                params = []
+                for i, expert in enumerate(expert_models):
+                    params.append({'params':expert.parameters()})
+                optimizer_experts = optim.Adam(params, lr=0.001,  amsgrad=False, weight_decay=1e-3)
+                               
+                optimizer = two_temp_optimizer(optimizer_experts=optimizer_experts, optimizer_gate=optimizer_gate)
+
+                hist = moe_model.train(trainloader=trainloader, testloader=testloader,  
+                                       loss_criterion=val['loss'], optimizer = optimizer,
+                                       T = T, T_decay=T_decay, T_decay_start=T_decay_start, w_importance=w_importance, w_sample_sim_same = w_sample_sim_same, 
+                                       w_sample_sim_diff = w_sample_sim_diff, distance_funct = distance_funct, 
+                                       accuracy=accuracy, epochs=num_epochs)
+                val['experts'][total_experts] = {'model':moe_model, 'history':hist}                
+
+
+            # Save all the trained models
+            plot_file = generate_plot_file(model, T[0], t_decay=T_decay, w_importance=w_importance, 
+                                           w_sample_sim_same=w_sample_sim_same,w_sample_sim_diff=w_sample_sim_diff,
+                                           specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
+            
+            if os.path.exists(os.path.join(model_path, plot_file)):
+                n_run_models_1 = torch.load(open(os.path.join(model_path, plot_file),'rb'))
+            n_run_models_1.append(models)
+            torch.save(n_run_models_1,open(os.path.join(model_path, plot_file),'wb'))
+            n_run_models_1 = []
+
 # # Function to train the single model
 # def train_single_model(model_name, trainloader, testloader, num_classes, num_epochs, runs):
     
