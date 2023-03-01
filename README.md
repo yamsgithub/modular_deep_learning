@@ -3,7 +3,7 @@ Gated Modular Deep Learning
 
 This repository contains various experiments to search for good task decompositions in Mixture of Experts (MoE). Good task decompositions enable interpertability and transferability in gated modular neural networks. 
 
-REQUIREMENTS
+Requirements
 ------------
 
 1. ``Python 3.9`` 
@@ -11,7 +11,7 @@ REQUIREMENTS
 3. Linux Operating System. It has been tested on Ubuntu and MacOS. 
 4. Additional modules listed in ``requirements.txt``
 
-INSTALLATION 
+Installation 
 ------------
 
 In order to install the code locally please follow the steps below:
@@ -31,7 +31,7 @@ In order to install the code locally please follow the steps below:
    `source mnn/bin/activate` on **Linux/Mac**
 
 
-RUNNING JUPYTER NOTEBOOK for WORKSHOP EXPERIMENTS
+Running Jupyter Notebook 
 ------------------------
 
 1. Run the following script to start jupyter: 
