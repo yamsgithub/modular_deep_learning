@@ -49,10 +49,11 @@ Running Jupyter Notebook
 Contact
 -------
 
-For any questions or issues email: yamuna dot krishnamurthy at rhul.ac.uk
+email: yamuna dot krishnamurthy at rhul.ac.uk
 
 Publication
 -------
-Yamuna Krishnamurthy and Chris Watkins, [Interpretability in Gated Modular Neural Networks](https://xai4debugging.github.io/files/papers/interpretability_in_gated_modu.pdf), in Explainable AI approaches for debugging and diagnosis Workshop at Neural Information Processing (NeurIPS), Dec 2021
+
+Yamuna Krishnamurthy and Chris Watkins, [Interpretability in Gated Modular Neural Networks](https://xai4debugging.github.io/files/papers/interpretability_in_gated_modu.pdf), in Explainable AI approaches for debugging and diagnosis Workshop at Neural Information Processing (NeurIPS), Dec 2021.
 
 
