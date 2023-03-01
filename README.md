@@ -1,18 +1,13 @@
 Gated Modular Deep Learning
 =======================================================================================================
 
-This repository contains various experiments to understand and improve interpertability in gated modular neural networks. Currently I am using the various Mixture of Experts architecture models listed below for these experiments: 
-
-1. Expectation Model
-2. Stochastic Model
-3. Pre-softmax Model
-4. EM Model
+This repository contains various experiments to search for good task decompositions in Mixture of Experts (MoE). Good task decompositions enable interpertability and transferability in gated modular neural networks. 
 
 REQUIREMENTS
 ------------
 
-1. ``Python 3.7`` 
-2. ``Pytorch 1.6.0, optionally with Cuda 10.1`` 
+1. ``Python 3.9`` 
+2. ``Pytorch 1.10.1, optionally with Cuda 11.2`` 
 3. Linux Operating System. It has been tested on Ubuntu and MacOS. 
 4. Additional modules listed in ``requirements.txt``
 
@@ -25,7 +20,7 @@ In order to install the code locally please follow the steps below:
 
 2. Set the environment variable to point to your python executable:
 
-   `export PYTHON=<path to python 3.7 executable>`
+   `export PYTHON=<path to python 3.9 executable>`
 
 3. Run the following command to set up the environment:
 
@@ -55,5 +50,9 @@ Contact
 -------
 
 For any questions or issues email: yamuna dot krishnamurthy at rhul.ac.uk
+
+Publication
+-------
+Yamuna Krishnamurthy and Chris Watkins, [Interpretability in Gated Modular Neural Networks](https://xai4debugging.github.io/files/papers/interpretability_in_gated_modu.pdf), in Explainable AI approaches for debugging and diagnosis Workshop at Neural Information Processing (NeurIPS), Dec 2021
 
 
