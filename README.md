@@ -3,7 +3,11 @@ Gated Modular Deep Learning
 
 This repository contains implementations of different Mixture of Experts (MoE) models both existing and novel architectures and methods of training. MoE is a gated modular deep neural network architecture, shown in Figure 1. It consists of simple individual neural network modules called experts and another simple neural network called gate. The gate allocates samples to the experts during training and selects the expert specifialized for a sample during inference. The output of the MoE is some combination of the outputs of the individual experts. The experts and gate are usually trained end-to-end. Since ideally experts specialise in samples, during inference, for each sample only a few experts need to be evaluated and updated. This is called <em> conditional computation</em>.
 
+![](figures/moe_expectation.png)
+*Figure 1 Original MoE architecture with 3 experts and 1 gate. The output of the model is the expected sum of the outputs of the individual experts*
+
 The goal of the various MoE models is to search for good and clean task decompositions among the experts. Good task decompositions enable interpertability and transferability in gated modular neural networks.
+
 
 
 
