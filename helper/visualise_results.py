@@ -315,16 +315,18 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
 
         gate_probabilities_sum = torch.sum(gate_probabilities, dim =1).cpu().detach().numpy()        
 
-        fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
+        fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
 
         palette = sns.color_palette("Set2", total_experts )
         for i in range(total_experts):
             sns.lineplot(x=range(num_epochs), y=gate_probabilities_sum[:,i], 
                          hue=[i]*num_epochs, palette=palette[i:i+1], ax=ax)
+        
         ax.set_ylim(bottom=0)
         plt.xlabel('Epochs')
         plt.ylabel('Number of Samples')
         plt.legend(['E'+str(i+1) for i in range(total_experts)])
+        plt.title('Number of samples sent to each expert during \n training with '+str(gate_probabilities.shape[1])+' samples of ' +dataset+ ' train dataset and '+str(total_experts)+' experts', fontsize=14)
         plt.show()
 
         cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
@@ -359,15 +361,15 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
             pred_labels = torch.hstack(pred_labels_all)
             
             fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
-            x = ['Expert '+str(i+1) for i in range(total_experts)]
+            x = ['E '+str(i+1) for i in range(total_experts)]
             y = torch.sum(gate_outputs, dim=0).cpu().numpy()
 
             sns.barplot(x=x, y=y, palette=palette, ax=ax)
-
+            plt.xlabel('Experts')
             plt.ylabel('Number of samples', fontsize=fontsize_label)
             ax.tick_params(axis='both', labelsize=10)
 
-            plt.title('Samples sent to each expert', fontsize=18)
+            plt.title('Number of samples sent to each expert during inference \n with '+str(len(test_loader.dataset))+ ' samples of '+dataset+ ' test dataset and '+str(total_experts)+' experts', fontsize=14)
             plot_file = model_file.replace('models.pt', 'expert_usage.png')
             plt.savefig(os.path.join(fig_path, plot_file))
             plt.show()
@@ -378,7 +380,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
 
             exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
             #fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(36,12))
-            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(24,8))
+            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18,6))
                 
             sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
                         xticklabels=[classes[i] for i in range(0, num_classes)],
@@ -390,17 +392,16 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
             selected_experts = torch.argmax(gate_outputs, dim=1)
             
             # plot the expert selection table
-            print('\nExperts used by the gate for classification of each class')
             class_expert_table = np.asarray([[0] * num_classes]*total_experts)
             for label, expert in zip(labels, selected_experts):
                 class_expert_table[expert,label] += 1
 
-            fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(24, 8))
+            fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18, 6))
             sns.heatmap(class_expert_table, yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
                         xticklabels=[classes[i] for i in range(0, num_classes)],
                         annot=annot, cmap=cmap, fmt='d', ax=ax)
             
-            plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of\n'+dataset+' test data', 
+            plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of '+dataset+' test data', 
                       fontsize=fontsize)
             plt.tick_params(axis='both', which='major', labelsize=18)
             plot_file = model_file.replace('models.pt', 'class_expert_table.png')
