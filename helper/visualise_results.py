@@ -327,6 +327,8 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
         plt.ylabel('Number of Samples')
         plt.legend(['E'+str(i+1) for i in range(total_experts)])
         plt.title('Number of samples sent to each expert during \n training with '+str(gate_probabilities.shape[1])+' samples of ' +dataset+ ' train dataset and '+str(total_experts)+' experts', fontsize=14)
+        plot_file = model_file.replace('models.pt', 'sample_distribution.png')
+        plt.savefig(os.path.join(fig_path, plot_file))
         plt.show()
 
         cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
@@ -341,7 +343,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
                 moe_model.device = device
 
                 # predict the classes for test data
-                if model_type == 'moe_no_gate_model':
+                if model_type == 'moe_no_gate_self_information_model':
                     pred = moe_model(images, targets=labels)
                 else:
                     pred = moe_model(images)
@@ -379,7 +381,6 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
                     exp_class_prob[e,l] += gate_outputs[index,e].to(device)
 
             exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
-            #fig,ax = plt.subplots(1, 2, sharex=False, sharey=False, figsize=(36,12))
             fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18,6))
                 
             sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
@@ -403,7 +404,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
             
             plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of '+dataset+' test data', 
                       fontsize=fontsize)
-            plt.tick_params(axis='both', which='major', labelsize=18)
+            plt.tick_params(axis='both', which='major', labelsize=14)
             plot_file = model_file.replace('models.pt', 'class_expert_table.png')
             plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
 
