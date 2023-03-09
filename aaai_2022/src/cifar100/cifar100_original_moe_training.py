@@ -115,10 +115,129 @@ with open(os.path.join(working_path, 'data/cifar100_class_names.txt'),'r') as cs
 
 classes_cifar100            
 
-# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
 class expert_layers(nn.Module):
     def __init__(self, num_classes, channels=3):
         super(expert_layers, self).__init__()
+        filter_size = 3
+        self.filters = 16
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.filters, kernel_size=filter_size, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=self.filters, out_channels=self.filters*2, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(self.filters*2)
+        self.mp = nn.MaxPool2d(2,2)
+
+        self.conv3 = nn.Conv2d(in_channels= self.filters*2, out_channels=self.filters*4, kernel_size=filter_size, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=self.filters*4, out_channels=self.filters*8, kernel_size=filter_size, stride=1, padding=1,bias=False)
+        self.bn8 = nn.BatchNorm2d(self.filters*8)
+
+        self.fc1 = nn.Linear(self.filters*8*2*2,1024)
+        self.fc2 = nn.Linear(1024, 256)
+        
+        self.out = nn.Linear(in_features=256, out_features=num_classes)
+                        
+    def forward(self, x):
+        # conv 1        
+        x = self.mp(F.relu(self.conv1(x)))
+        x = self.mp(F.relu(self.bn2(self.conv2(x))))    
+    
+        x = self.mp(F.relu(self.conv3(x)))
+        x = self.mp(F.relu(self.bn8(self.conv4(x))))
+        
+        x = x.reshape(-1, self.filters*8*2*2)
+
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        
+        self.hidden = x
+        
+        x = F.relu(x)
+        
+        x = self.out(x)
+        
+        # output
+        x = F.softmax(x, dim=1)
+
+        return x    
+    
+# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
+class gate_layers(nn.Module):
+    def __init__(self, num_experts):
+        super(gate_layers, self).__init__()
+        # define layers
+        filter_size = 3
+        self.filters = 64
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.filters, kernel_size=filter_size, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=self.filters, out_channels=self.filters*2, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(self.filters*2)
+        self.mp = nn.MaxPool2d(2,2)
+        
+        self.conv3 = nn.Conv2d(in_channels= self.filters*2, out_channels=self.filters*4, kernel_size=filter_size, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=self.filters*4, out_channels=self.filters*8, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn8 = nn.BatchNorm2d(self.filters*8)
+
+        self.fc1 = nn.Linear(self.filters*8*2*2, 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        
+        self.out = nn.Linear(in_features=256, out_features=num_experts)
+        
+    def forward(self, x, T=1.0, y=None):
+        # conv 1        
+        x = self.mp(F.relu(self.conv1(x)))
+        x = self.mp(F.relu(self.bn2(self.conv2(x))))
+
+        x = self.mp(F.relu(self.conv3(x)))
+        x = self.mp(F.relu(self.bn8(self.conv4(x))))
+        
+        x = x.reshape(-1, self.filters*8*2*2)
+        
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        
+        x = self.out(x)
+        x = F.softmax(x/T, dim=1)
+        return x
+
+class single_model(nn.Module):
+    def __init__(self, num_classes, channels=3):
+        super(single_model, self).__init__()
+        filter_size = 3
+        self.filters = 16
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.filters, kernel_size=filter_size, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=self.filters, out_channels=self.filters*2, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(self.filters*2)
+        self.mp = nn.MaxPool2d(2,2)
+
+        self.conv3 = nn.Conv2d(in_channels= self.filters*2, out_channels=self.filters*4, kernel_size=filter_size, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=self.filters*4, out_channels=self.filters*8, kernel_size=filter_size, stride=1, padding=1,bias=False)
+        self.bn8 = nn.BatchNorm2d(self.filters*8)
+
+        self.fc1 = nn.Linear(self.filters*8*2*2,1024)
+        self.fc2 = nn.Linear(1024, 256)
+        
+        self.out = nn.Linear(in_features=256, out_features=num_classes)
+                        
+    def forward(self, x):
+        # conv 1        
+        x = self.mp(F.relu(self.conv1(x)))
+        x = self.mp(F.relu(self.bn2(self.conv2(x))))    
+    
+        x = self.mp(F.relu(self.conv3(x)))
+        x = self.mp(F.relu(self.bn8(self.conv4(x))))
+
+        x = x.reshape(-1, self.filters*8*2*2)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        
+        x = self.out(x)
+        
+        # output
+        x = F.softmax(x, dim=1)
+                
+        return x
+
+# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
+class expert_layers_128(nn.Module):
+    def __init__(self, num_classes, channels=3):
+        super(expert_layers_128, self).__init__()
         filter_size = 3
         self.filters = 8
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=self.filters, kernel_size=filter_size, padding=1)
@@ -160,9 +279,9 @@ class expert_layers(nn.Module):
         return x    
     
 # Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
-class gate_layers(nn.Module):
+class gate_layers_128(nn.Module):
     def __init__(self, num_experts, channels=3):
-        super(gate_layers, self).__init__()
+        super(gate_layers_128, self).__init__()
         # define layers
         filter_size = 3
         self.filters = 64
@@ -234,9 +353,9 @@ class gate_layers_top_k(nn.Module):
         x = x/T
         return x
     
-class single_model(nn.Module):
+class single_model_128(nn.Module):
     def __init__(self, num_classes, channels=3):
-        super(single_model, self).__init__()
+        super(single_model_128, self).__init__()
         filter_size = 3
         self.filters = 8
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=self.filters, kernel_size=filter_size, padding=1)
