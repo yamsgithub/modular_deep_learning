@@ -4,16 +4,13 @@ from cifar100_original_moe_training import *
 from original_moe_training import *
 from torchvision.models import resnet18
 
-sys.path.append('WideResNet-pytorch-master')
-from wideresnet import WideResNet
+#sys.path.append('WideResNet-pytorch-master')
+#from wideresnet import WideResNet
 
 
-expert_layers_types = {'expert_layers': expert_layers,
-                      'expert_layers_conv_2': expert_layers_conv_2}
+expert_layers_types = {'expert_layers': expert_layers}
 
 gate_layers_types = {'gate_layers': gate_layers,
-                     'gate_layers_conv_2': gate_layers_conv_2,
-                     'gate_layers_conv_2_top_k': gate_layers_conv_2_top_k,
                     'gate_layers_top_k': gate_layers_top_k}
 
 expert_layers_type = expert_layers
@@ -21,7 +18,7 @@ gate_layers_type = gate_layers
 
 m = 'cifar100_without_reg'
 mt = 'moe_expectation_model'
-total_experts = 10
+total_experts = 20
 k = 0
 runs = 1
 w_importance_range=[0.0]
@@ -83,7 +80,7 @@ print('importance factor:', w_importance_range[0])
 print('sample similarity factor:', w_sample_sim_same_range[0])
 print('sample dissimilarity factor:', w_sample_sim_diff_range[0])
 
-num_classes = 10
+num_classes = 100
 
 # Paths to where the trained models, figures and results will be stored. You can change this as you see fit.
 working_path = '/gpfs/data/fs72053/yamuna_k'

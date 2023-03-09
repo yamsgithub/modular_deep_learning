@@ -1,24 +1,26 @@
 import argparse
 import sys
-from cifar100_moe_with_attention_training import *
+from cifar10_moe_with_attention_training import *
 from moe_with_attention_training import *
 from torchvision.models import resnet18
 
-#sys.path.append('WideResNet-pytorch-master')
-#from wideresnet import WideResNet
+sys.path.append('WideResNet-pytorch-master')
+from wideresnet import WideResNet
 
 
-expert_layers_types = {'expert_layers': expert_layers}
+expert_layers_types = {'expert_layers': expert_layers,
+                      'expert_layers_conv_2': expert_layers_conv_2}
 
-gate_layers_types = {'gate_attn_layers': gate_attn_layers}
+gate_layers_types = {'gate_attn_layers': gate_attn_layers,
+                     'gate_attn_layers_conv_2': gate_attn_layers_conv_2}
 
 expert_layers_type = expert_layers
 gate_layers_type = gate_attn_layers
 
-m = 'cifar100_with_attention'
+m = 'cifar10_with_attention'
 mt = 'moe_expectation_model'
-total_experts = 20
-hidden = 64 
+total_experts = 10
+hidden = 32
 k = 0
 num_epochs = 20
 runs = 1
@@ -91,8 +93,8 @@ print('sample distance function name', d)
 num_classes = 10
 
 # Paths to where the trained models, figures and results will be stored. You can change this as you see fit.
-working_path = '/gpfs/data/fs72053/yamuna_k'
-model_path = os.path.join(working_path, 'models/cifar100')
+working_path = '/gpfs/data/fs71921/yamunak'
+model_path = os.path.join(working_path, 'models/cifar10')
 
 if not os.path.exists(model_path):
     os.mkdir(model_path)
@@ -112,14 +114,14 @@ elif d == 'wideres_distance_funct':
     print('sample distance function: wideres_distance_funct') 
     number_of_layers = 40
     model = WideResNet(depth=number_of_layers, num_classes=10, widen_factor=4)
-    checkpoint = torch.load('WideResNet-pytorch-master/runs/WideResNet-28-10/cifar100.pth.tar')
+    checkpoint = torch.load('WideResNet-pytorch-master/runs/WideResNet-28-10/cifar10.pth.tar')
     model.load_state_dict(checkpoint['state_dict'])
     # model = nn.DataParallel(model)
     model.to(device)
     model.eval()
     distance_funct = resnet_distance_funct(model).distance_funct
 
-train_with_attention(m, mt, k, cifar100_trainloader, cifar100_valloader, 
+train_with_attention(m, mt, k, cifar10_trainloader, cifar10_valloader, 
                      expert_layers=expert_layers_type, gate_layers=gate_layers_type,
                      w_importance_range=w_importance_range,
                      w_sample_sim_same_range=w_sample_sim_same_range, 

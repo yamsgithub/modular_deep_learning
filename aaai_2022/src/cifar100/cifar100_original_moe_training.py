@@ -58,7 +58,7 @@ from helper.visualise_results import *
 
 # Paths to where the trained models and figures will be stored. You can change this as you see fit.
 
-working_path = '/nobackup/projects/bdrap03/yamuna/modular_deep_learning/aaai_2022/src'
+working_path = '/home/fs72053/yamuna_k/modular_deep_learning/aaai_2022/src'
 model_path = os.path.join(working_path, '../models')
 
 if not os.path.exists(model_path):
@@ -234,8 +234,6 @@ class gate_layers_top_k(nn.Module):
         x = x/T
         return x
     
-# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
-# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
 class single_model(nn.Module):
     def __init__(self, num_classes, channels=3):
         super(single_model, self).__init__()
