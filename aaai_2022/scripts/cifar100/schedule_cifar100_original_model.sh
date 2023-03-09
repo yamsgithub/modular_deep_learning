@@ -8,17 +8,17 @@
 # Node resources:
 # (choose between 1-4 gpus per node)
 
-#SBATCH --partition=zen3_0512_a100x2   # Choose either "gpu" or "infer" node type        
-#SBATCH --qos zen3_0512_a100x2 
+#SBATCH --partition=zen2_0256_a40x2   # Choose either "gpu" or "infer" node type        
+#SBATCH --qos zen2_0256_a40x2 
 #SBATCH --gres=gpu:1      # 4 GPUS per node (plus 100% of node CPU and RAM per GPU)
 
 # Run commands:
 
 # Place other commands here
 
-cd /home/fs72053/yamunak/modular_deep_learning
+cd /home/fs72053/yamuna_k/modular_deep_learning
 
-export MNN_HOME=/home/fs72053/yamunak/modular_deep_learning:/home/fs72053/yamunak/modular_deep_learning/aaai_2022/src
+export MNN_HOME=/home/fs72053/yamuna_k/modular_deep_learning:/home/fs72053/yamuna_k/modular_deep_learning/aaai_2022/src
 echo "MNN_HOME  : $MNN_HOME"
 
 export PYTHONPATH=$MNN_HOME
