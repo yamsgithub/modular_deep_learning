@@ -8,7 +8,7 @@ sbatch aaai_2022/scripts/cifar10/schedule_cifar10_original_model.sh -g gate_laye
 
 sbatch aaai_2022/scripts/cifar10/schedule_cifar10_original_model.sh -m cifar10_rand_init  -mt moe_expectation_model -r 10 -M 10 -E 200
 
-sbatch aaai_2022/scripts/cifar10/schedule_cifar10_without_reg_loss_gate_model.sh -m  cifar10_loss_gate_rand_init -r 10  -M 10 -E 200
+sbatch aaai_2022/scripts/cifar10/schedule_cifar10_loss_gate_model.sh -m  cifar10_loss_gate_rand_init -r 10  -M 10 -E 200
 
 sbatch aaai_2022/scripts/cifar10/schedule_cifar10_with_attention.sh -m cifar10_with_attn_stochastic_rand_init -mt moe_stochastic_model -r 10 -M 10 -E 200
 
