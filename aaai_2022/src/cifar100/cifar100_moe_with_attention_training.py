@@ -4,6 +4,8 @@ from cifar100_original_moe_training import *
 class gate_attn_layers(nn.Module):
     def __init__(self, num_experts):
         super(gate_attn_layers, self).__init__()
+        # define layers
+       # define layers
         filter_size = 3
         self.filters = 64
         self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.filters, kernel_size=filter_size, padding=1)
@@ -15,8 +17,8 @@ class gate_attn_layers(nn.Module):
         self.conv4 = nn.Conv2d(in_channels=self.filters*4, out_channels=self.filters*8, kernel_size=filter_size, stride=1, padding=1, bias=False)
         self.bn8 = nn.BatchNorm2d(self.filters*8)
 
-        self.fc1 = nn.Linear(self.filters*8*2*2, 512)
-        self.fc2 = nn.Linear(512, 64)
+        self.fc1 = nn.Linear(self.filters*8*2*2, 1024)
+        self.fc2 = nn.Linear(1024, 256)
                  
     def forward(self, x, T=1.0, y=None):
         # conv 1
