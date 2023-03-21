@@ -55,7 +55,7 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                          runs=10, temps=[[1.0]*20],                
                          w_importance_range=[0.0], w_sample_sim_same_range=[0.0], 
                          w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, 
-                         num_classes=10, total_experts=5, num_epochs=20, model_path=None):
+                         num_classes=10, total_experts=5, num_epochs=20, lr=0.001, wd=1e-3, model_path=None):
 
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device)),
                        'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device)),
@@ -100,7 +100,7 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                     
                 moe_model.to(device)
                 
-                optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False, weight_decay=1e-3)
+                optimizer_moe = optim.Adam(moe_model.parameters(), lr=lr, weight_decay=wd)
                 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
 
