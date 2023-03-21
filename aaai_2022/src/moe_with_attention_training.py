@@ -61,8 +61,8 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
                          expert_layers=None, gate_layers=None, 
                          runs=1, temps=[[1.0]*20], w_importance_range=[0], 
                          w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
-                         distance_funct = default_distance_funct,
-                         hidden=32, num_classes=10, total_experts=5, num_epochs=20, model_path=None):
+                         distance_funct = default_distance_funct, hidden=32, num_classes=10, total_experts=5, 
+                         num_epochs=20, lr=0.001, wd=1e-3,  model_path=None):
     
     hidden = hidden
     
@@ -107,7 +107,7 @@ def train_with_attention(model, model_name, k=1, trainloader=None, testloader=No
                     
                 moe_model.to(device)
 
-                optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
+                optimizer_moe = optim.Adam(moe_model.parameters(), lr=lr, amsgrad=False, weight_decay=wd)
                 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
 
