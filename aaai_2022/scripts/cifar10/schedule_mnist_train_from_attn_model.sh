@@ -10,7 +10,7 @@
 
 #SBATCH --partition=gpu    # Choose either "gpu" or "infer" node type        
 #SBATCH --nodes=1 --ntasks-per-node=1 # Resources from a single node
-#SBATCH --gres=gpu:2     # 4 GPUS per node (plus 100% of node CPU and RAM per GPU)
+#SBATCH --gres=gpu:1      # 4 GPUS per node (plus 100% of node CPU and RAM per GPU)
 
 # Run commands:
 
@@ -28,6 +28,6 @@ conda init bash
 conda deactivate
 conda activate mnn
 
-python aaai_2022/src/cifar10/cifar10_collect_results.py $*
+python aaai_2022/src/cifar10/cifar10_train_from_attn_model.py $*
 
 echo "end of job"
