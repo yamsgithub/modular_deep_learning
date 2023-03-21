@@ -19,6 +19,7 @@ gate_layers_type = gate_layers
 m = 'cifar100_without_reg'
 mt = 'moe_expectation_model'
 total_experts = 20
+num_classes = 100
 k = 0
 runs = 1
 w_importance_range=[0.0]
@@ -75,12 +76,11 @@ print('model name:', m)
 print('model type:', mt)
 print('runs:', runs)
 print('total experts:', total_experts)
+print('num classes:', num_classes)
 print('Num epochs:', num_epochs)
 print('importance factor:', w_importance_range[0])
 print('sample similarity factor:', w_sample_sim_same_range[0])
 print('sample dissimilarity factor:', w_sample_sim_diff_range[0])
-
-num_classes = 100
 
 # Paths to where the trained models, figures and results will be stored. You can change this as you see fit.
 working_path = '/gpfs/data/fs72053/yamuna_k'

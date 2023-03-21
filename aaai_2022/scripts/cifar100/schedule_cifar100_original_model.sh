@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Generic options:
-#SBATCH -J CIFAR10_orig
+#SBATCH -J CIFAR100_orig
 #SBATCH --account=p72053  # Run job under project <project>
 #SBATCH --time=48:00:00  # Run for a max of 2 day
 

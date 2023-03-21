@@ -37,14 +37,6 @@ import torchvision.transforms.functional as TF
 import torchvision.transforms as transforms
 from torchvision.models import resnet18
 
-if torch.cuda.is_available():
-    device = torch.device("cuda:0")
-    print('device', device)
-else:
-    device = torch.device("cpu")
-    print('device', device)
-
-
 # import MoE expectation model. All experiments for this dataset are done with the expectation model as it
 # provides the best guarantee of interpretable task decompositions
 from moe_models.moe_expectation_model import moe_expectation_model
@@ -196,6 +188,45 @@ class gate_layers(nn.Module):
         x = F.softmax(x/T, dim=1)
         return x
 
+# Convolutional network with one convultional layer and 2 hidden layers with ReLU activation
+class gate_layers_top_k(nn.Module):
+    def __init__(self, num_experts):
+        super(gate_layers_top_k, self).__init__()
+        # define layers
+        filter_size = 3
+        self.filters = 64
+        self.conv1 = nn.Conv2d(in_channels=3, out_channels=self.filters, kernel_size=filter_size, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=self.filters, out_channels=self.filters*2, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(self.filters*2)
+        self.mp = nn.MaxPool2d(2,2)
+
+        self.conv3 = nn.Conv2d(in_channels= self.filters*2, out_channels=self.filters*4, kernel_size=filter_size, stride=1, padding=1)
+        self.conv4 = nn.Conv2d(in_channels=self.filters*4, out_channels=self.filters*8, kernel_size=filter_size, stride=1, padding=1, bias=False)
+        self.bn8 = nn.BatchNorm2d(self.filters*8)
+
+        self.fc1 = nn.Linear(self.filters*8*2*2, 1024)
+        self.fc2 = nn.Linear(1024, 256)
+
+        self.out = nn.Linear(in_features=256, out_features=num_experts)
+
+    def forward(self, x, T=1.0, y=None):
+        # conv 1
+        x = self.mp(F.relu(self.conv1(x)))
+        x = self.mp(F.relu(self.bn2(self.conv2(x))))
+
+        x = self.mp(F.relu(self.conv3(x)))
+        x = self.mp(F.relu(self.bn8(self.conv4(x))))
+
+        x = x.reshape(-1, self.filters*8*2*2)
+
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+
+        x = self.out(x)
+        x = x/T
+        
+        return x
+
 class single_model(nn.Module):
     def __init__(self, num_classes, channels=3):
         super(single_model, self).__init__()
@@ -316,9 +347,9 @@ class gate_layers_128(nn.Module):
         x = F.softmax(x/T, dim=1)
         return x
 
-class gate_layers_top_k(nn.Module):
+class gate_layers_top_k_128(nn.Module):
     def __init__(self, num_experts, channels=3):
-        super(gate_layers_top_k, self).__init__()
+        super(gate_layers_top_k_128, self).__init__()
         # define layers
         filter_size = 3
         self.filters = 64
