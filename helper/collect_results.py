@@ -22,7 +22,7 @@ def accuracy(out, yb, mean=True):
     else:
         return (preds == yb).float()
     
-def generate_results(mod, model_name, plot_file, testloader, total_experts, num_classes, writer):
+def generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, writer):
     data = [plot_file]    
     # model
     model = mod[model_name]['experts'][total_experts]['model']
@@ -133,7 +133,7 @@ def collect_results(m, model_name, k=0, temps=[1.0], T_decay=[0.0], w_importance
             models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
             for _ in range(len(models)):
                 mod = models.pop()
-                generate_results(mod, model_name, plot_file, testloader, total_experts, num_classes, writer)
+                generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, writer)
             
 
 
