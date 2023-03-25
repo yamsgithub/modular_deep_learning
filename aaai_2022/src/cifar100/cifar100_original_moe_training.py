@@ -79,7 +79,7 @@ trainsize = 40000
 valsize = 10000
 testsize =10000
 
-batch_size = 256
+batch_size = 1024
 
 torch.manual_seed(0)
 cifar100_train_set, cifar100_val_set = torch.utils.data.random_split(cifar100_trainset, [trainsize, valsize])
