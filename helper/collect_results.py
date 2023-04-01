@@ -22,7 +22,18 @@ def accuracy(out, yb, mean=True):
     else:
         return (preds == yb).float()
     
-def generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, writer):
+# Compute accuracy of the model
+def accuracy_top5(out, yb):
+    preds = torch.argsort(out, dim=1,descending=True).to(device, non_blocking=True)
+    N = preds.shape[0]
+    correct = 0
+    for i in range(N):
+        if yb[i] in preds[i,0:5]:
+            correct += 1
+    return correct/N
+    
+    
+def generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, top_5=False, writer=None):
     data = [plot_file]    
     # model
     model = mod[model_name]['experts'][total_experts]['model']
@@ -39,6 +50,7 @@ def generate_results(mod, model_name, k, plot_file, testloader, total_experts, n
 
     gate_probabilities = torch.zeros(total_experts).to(device)
     running_test_accuracy = 0.0
+    running_top5_accuracy = 0.0
     running_entropy = 0.0
     num_batches = 0
 
@@ -56,6 +68,8 @@ def generate_results(mod, model_name, k, plot_file, testloader, total_experts, n
 
         outputs = model(test_inputs)
         running_test_accuracy += accuracy(outputs, test_labels)
+        if top_5:
+            running_top5_accuracy += accuracy_top5(outputs, test_labels)
 
         selected_experts = torch.argmax(model.gate_outputs, dim=1)
         y = test_labels
@@ -85,7 +99,12 @@ def generate_results(mod, model_name, k, plot_file, testloader, total_experts, n
     mutual_EY,_,_,_ = moe_models.mutual_information(ey.detach())
 
     test_error = 1-(running_test_accuracy/num_batches)
+    if top_5:
+        top5_error = 1-(running_top5_accuracy/num_batches)
+    
     data.append(test_error.item())
+    if top_5:
+        data.append(top5_error)
     data.append(mutual_EY.item())                
 
     if ('top_k' in model_name and k==1) or 'stochastic' in model_name:
@@ -107,7 +126,7 @@ def generate_results(mod, model_name, k, plot_file, testloader, total_experts, n
     
 def collect_results(m, model_name, k=0, temps=[1.0], T_decay=[0.0], w_importance_range=[0.0], w_ortho_range=[0.0], 
                     w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
-                    total_experts=5, num_classes=10, num_epochs=20, 
+                    total_experts=5, num_classes=10, num_epochs=20, top_5=False,
                     testloader=None, model_path=None, results_path=None, filename='mnist_results.csv'):
     
     filename = os.path.join(results_path, filename)
@@ -117,7 +136,10 @@ def collect_results(m, model_name, k=0, temps=[1.0], T_decay=[0.0], w_importance
     else:
         p = 'w'
         
-    header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
+    if top_5:
+        header = ['filename', 'val error', 'top-1 error', 'top-5 error', 'mutual information',  'sample entropy', 'experts usage', 'per_task_entropy']
+    else:
+        header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
     
     with open(filename, p) as f:
                 
@@ -131,13 +153,14 @@ def collect_results(m, model_name, k=0, temps=[1.0], T_decay=[0.0], w_importance
                                            specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
             print(plot_file)
             models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
+            print(len(models))
             for _ in range(len(models)):
                 mod = models.pop()
-                generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, writer)
-            
+                generate_results(mod, model_name, k, plot_file, testloader, total_experts, num_classes, top_5, writer)
+                del mod
 
 
-def collect_single_result(m, num_classes=10, num_epochs=20, testloader=None, 
+def collect_single_result(m, num_classes=10, num_epochs=20, testloader=None, top_5=False,
                           model_path=None, results_path=None, filename='mnist_results.csv'):
     import csv
 
@@ -153,7 +176,10 @@ def collect_single_result(m, num_classes=10, num_epochs=20, testloader=None,
     else:
         p = 'w'
 
-    header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
+    if top_5:
+        header = ['filename', 'val error', 'top-1 error', 'top-5 error', 'mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
+    else:
+        header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
     
     with open(filename, p) as f:
         writer = csv.writer(f)        
@@ -161,28 +187,34 @@ def collect_single_result(m, num_classes=10, num_epochs=20, testloader=None,
         if p == 'w':            
             writer.writerow(header)
         for i, model in enumerate(models['models']):
-            # print(i, model)
-            data = ['']*7
-            data[0] = m
+            data = [plot_file] 
             running_test_accuracy = 0.0
+            running_top5_accuracy = 0.0
             num_batches = 0
             val_error = 1-models['history'][i]['val_accuracy'][-1]
-            data[1] = val_error
+            data.append(val_error)
             for test_inputs, test_labels in testloader:
                 test_inputs, test_labels = test_inputs.to(device, non_blocking=True), test_labels.to(device, non_blocking=True)                
                 outputs = model(test_inputs)
                 running_test_accuracy += accuracy(outputs, test_labels)
+                if top_5:
+                    running_top5_accuracy += accuracy_top5(outputs, test_labels)
                 num_batches += 1
             test_error = 1-(running_test_accuracy/num_batches)
-            data[2] = test_error.item()
-
+            
+            data.append(test_error.item())
+            if top_5:
+                top5_error = 1-(running_top5_accuracy/num_batches)
+                data.append(top5_error)
+            for i in range(4):
+                data.append('')
             writer.writerow(data)
 
 
 def collect_loss_gate_results(m, model_type='moe_expectation_model', temps=[1.0], w_importance_range=[0.0], 
                     w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
                     total_experts=5, num_classes=10, num_epochs=20, 
-                    testloader=None, model_path=None, results_path=None, filename ='mnist_results.csv' ):
+                    testloader=None, top_5=False, model_path=None, results_path=None, filename ='mnist_results.csv' ):
     
     filename = os.path.join(results_path, filename)
     
@@ -191,7 +223,10 @@ def collect_loss_gate_results(m, model_type='moe_expectation_model', temps=[1.0]
     else:
         p = 'w'
         
-    header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
+    if top_5:
+        header = ['filename', 'val error', 'top-1 error', 'top-5 error', 'mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
+    else:
+        header = ['filename', 'val error', 'test error','mutual information', 'sample entropy', 'experts usage', 'per_task_entropy']
     
     with open(filename, p) as f:
                 
@@ -217,6 +252,8 @@ def collect_loss_gate_results(m, model_type='moe_expectation_model', temps=[1.0]
                 data.append(1-history['val_accuracy'][-1].item())               
                 
                 running_top1_accuracy = 0.0
+                running_top5_accuracy = 0.0
+                
                 running_entropy = 0.0
                 num_batches = 0
                 ey =  torch.zeros((num_classes, total_experts)).to(device)
@@ -235,7 +272,8 @@ def collect_loss_gate_results(m, model_type='moe_expectation_model', temps=[1.0]
                     expert_outputs = model.expert_outputs
                     gate_outputs = model.gate_outputs
                     running_top1_accuracy += accuracy(outputs, test_labels)
-                    
+                    if top_5:
+                        running_top5_accuracy += accuracy_top5(outputs, test_labels)
                     selected_experts = torch.argmax(gate_outputs, dim=1)
                     y = test_labels
                     e = selected_experts
@@ -253,8 +291,12 @@ def collect_loss_gate_results(m, model_type='moe_expectation_model', temps=[1.0]
                 mutual_EY,_,_,_ = moe_models.mutual_information(ey.detach())
     
                 top1_error = 1-(running_top1_accuracy/num_batches)
-                
+                if top_5:
+                    top5_error = 1-(running_top5_accuracy/num_batches)
+            
                 data.append(top1_error.item())
+                if top_5:
+                    data.append(top5_error)
                 data.append(mutual_EY.item())
                 
                 # Since gate outputs are not probabilities
