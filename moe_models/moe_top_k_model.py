@@ -65,11 +65,7 @@ class moe_top_k_model(moe_models_base):
         if self.k > 1:
             output = torch.sum(output, 1)
         else:
-            # print('BEFORE output', output)
             output = F.softmax(output.squeeze(), dim=1)
-            # print('AFTER output', output)
-        
-        # print('o',output[0], 'o sum',torch.sum(output[0]))
                    
         return output
     
