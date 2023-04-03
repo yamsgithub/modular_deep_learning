@@ -209,7 +209,7 @@ def generate_plot_file(dataset, temp=1.0, t_decay=0.0, no_gate_T=1.0, w_importan
     return plot_file
 
 
-def find_best_model(m, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],  
+def find_best_model(m, model_type='moe_expectation_model', temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],  
             w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
                     total_experts=5, num_classes=10, num_epochs=20, model_path=None, device='cpu'):
 
@@ -230,18 +230,18 @@ def find_best_model(m, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],
               models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
               for i, model in enumerate(models):
-                  for e_key, e_val in model.items():
-                      history = model[e_key]['experts'][total_experts]['history']
-                      val_error = 1-history['val_accuracy'][-1]
-                      if min_val_error > val_error:
-                         min_val_error = val_error
-                         train_error = 1-history['accuracy'][-1]
-                         mutual_info = history['mutual_EY'][-1]
-                         sample_entropy = history['sample_entropy'][-1]
-                         expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
-                         best_model = model
-                         best_model_file = plot_file
-                         best_model_index = i
+                  # for e_key, e_val in model.items():
+                  history = model[model_type]['experts'][total_experts]['history']
+                  val_error = 1-history['val_accuracy'][-1]
+                  if min_val_error > val_error:
+                     min_val_error = val_error
+                     train_error = 1-history['accuracy'][-1]
+                     mutual_info = history['mutual_EY'][-1]
+                     sample_entropy = history['sample_entropy'][-1]
+                     expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
+                     best_model = model
+                     best_model_file = plot_file
+                     best_model_index = i
 
     for w_sample_sim_same, w_sample_sim_diff in product(w_sample_sim_same_range, w_sample_sim_diff_range):
         
@@ -251,19 +251,19 @@ def find_best_model(m, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],
         models = torch.load(open(os.path.join(model_path, plot_file),'rb'), map_location=device)
 
         for i, model in enumerate(models):
-            for e_key, e_val in model.items():
-                history = model[e_key]['experts'][total_experts]['history']
-                val_error = 1-history['val_accuracy'][-1]
-                
-                if min_val_error > val_error:
-                    min_val_error = val_error
-                    train_error = history['accuracy'][-1]
-                    mutual_info = history['mutual_EY'][-1]
-                    sample_entropy = history['sample_entropy'][-1]
-                    expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
-                    best_model = model
-                    best_model_file = plot_file
-                    best_model_index = i
+            # for e_key, e_val in model.items():
+            history = model[model_type]['experts'][total_experts]['history']
+            val_error = 1-history['val_accuracy'][-1]
+
+            if min_val_error > val_error:
+                min_val_error = val_error
+                train_error = history['accuracy'][-1]
+                mutual_info = history['mutual_EY'][-1]
+                sample_entropy = history['sample_entropy'][-1]
+                expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
+                best_model = model
+                best_model_file = plot_file
+                best_model_index = i
 
     print('Train Accuracy','{:.3f}'.format(train_error))
     print('Max Validation Accuracy','{:.3f}'.format(1-min_val_error))
@@ -275,9 +275,11 @@ def find_best_model(m, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],
 
 
 
-def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, temps=[[1.0]*20], T_decay=[0.0], w_importance_range=[],
-                      w_sample_sim_same_range=[], w_sample_sim_diff_range=[], total_experts=5, num_classes=10, 
-                      classes=list(range(10)),num_epochs=20, fig_path=None, model_path=None, dataset='MNIST', annot=True, best=True, index=0, device=torch.device("cpu")):
+def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, temps=[[1.0]*20], T_decay=[0.0], 
+                      w_importance_range=[],w_sample_sim_same_range=[], w_sample_sim_diff_range=[], 
+                      total_experts=5, num_classes=10, classes=list(range(10)),num_epochs=20, 
+                      fig_path=None, model_path=None, dataset='MNIST', 
+                      annot=True, best=True, index=0, device=torch.device("cpu")):
     
     plt.tight_layout()
     
@@ -285,7 +287,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
     fontsize_label = 12
     
     if best:
-        model, model_file, best_model_index = find_best_model(m, temps=temps, T_decay=T_decay, 
+        model, model_file, best_model_index = find_best_model(m, model_type=model_type, temps=temps, T_decay=T_decay, 
                                                               w_importance_range=w_importance_range,
                                                               w_sample_sim_same_range=w_sample_sim_same_range, 
                                                               w_sample_sim_diff_range=w_sample_sim_diff_range, 
@@ -308,113 +310,117 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
         
     
     print(model_file)
-    for e_key, e_val in model.items():
+    # for e_key, e_val in model.items():
 
-        history = model[e_key]['experts'][total_experts]['history']
-        gate_probabilities = torch.vstack(history['gate_probabilities']).view(num_epochs,-1,total_experts)
+    history = model[model_type]['experts'][total_experts]['history']
+    gate_probabilities = torch.vstack(history['gate_probabilities']).view(num_epochs,-1,total_experts)
 
-        gate_probabilities_sum = torch.sum(gate_probabilities, dim =1).cpu().detach().numpy()        
+    gate_probabilities_sum = torch.sum(gate_probabilities, dim =1).cpu().detach().numpy()        
+
+    fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
+
+    palette = sns.color_palette("Set2", total_experts )
+    for i in range(total_experts):
+        sns.lineplot(x=range(num_epochs), y=gate_probabilities_sum[:,i], 
+                     hue=[i]*num_epochs, palette=palette[i:i+1], ax=ax)
+
+    ax.set_ylim(bottom=0)
+    plt.xlabel('Epochs')
+    plt.ylabel('Number of Samples')
+    plt.legend(['E'+str(i+1) for i in range(total_experts)])
+    plt.title('Number of samples sent to each expert during \n training with '+str(gate_probabilities.shape[1])+' samples of ' +dataset+ ' train dataset and '+str(total_experts)+' experts', fontsize=14)
+    plot_file = model_file.replace('models.pt', 'sample_distribution.png')
+    plt.savefig(os.path.join(fig_path, plot_file))
+    plt.show()
+
+    cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
+    with torch.no_grad():
+        gate_outputs_all = []
+        pred_labels_all = []
+        labels_all = []
+        exp_class_prob = torch.zeros(total_experts, num_classes).to(device)
+        for images, labels in test_loader:
+            images, labels = images.to(device), labels.to(device)
+            moe_model = model[model_type]['experts'][total_experts]['model']
+            moe_model.device = device
+
+            # predict the classes for test data
+            if model_type == 'moe_no_gate_self_information_model':
+                pred = moe_model(images, targets=labels)
+            else:
+                pred = moe_model(images)
+
+            pred_labels = torch.argmax(pred, dim=1)
+
+            labels_all.append(labels)
+            pred_labels_all.append(pred_labels)
+
+            expert_outputs = moe_model.expert_outputs
+            gate_outputs = moe_model.gate_outputs
+
+            gate_outputs_all.append(gate_outputs)
+
+        gate_outputs = torch.vstack(gate_outputs_all)
+        labels = torch.hstack(labels_all)
+        pred_labels = torch.hstack(pred_labels_all)
+        
+        # get the experts selected by the gate for each sample
+        selected_experts = torch.argmax(gate_outputs, dim=1)
+
+        # plot the expert selection table
+        class_expert_table = np.asarray([[0] * num_classes]*total_experts)
+        for label, expert in zip(labels, selected_experts):
+            class_expert_table[expert,label] += 1
 
         fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
-
-        palette = sns.color_palette("Set2", total_experts )
-        for i in range(total_experts):
-            sns.lineplot(x=range(num_epochs), y=gate_probabilities_sum[:,i], 
-                         hue=[i]*num_epochs, palette=palette[i:i+1], ax=ax)
+        x = ['E '+str(i+1) for i in range(total_experts)]
         
-        ax.set_ylim(bottom=0)
-        plt.xlabel('Epochs')
-        plt.ylabel('Number of Samples')
-        plt.legend(['E'+str(i+1) for i in range(total_experts)])
-        plt.title('Number of samples sent to each expert during \n training with '+str(gate_probabilities.shape[1])+' samples of ' +dataset+ ' train dataset and '+str(total_experts)+' experts', fontsize=14)
-        plot_file = model_file.replace('models.pt', 'sample_distribution.png')
+        if model_type == 'moe_expert_loss_model':
+            y = np.sum(class_expert_table, axis=1)
+        else:
+            y = torch.sum(gate_outputs, dim=0).cpu().numpy()
+        
+
+        sns.barplot(x=x, y=y, palette=palette, ax=ax)
+        plt.xlabel('Experts')
+        plt.ylabel('Number of samples', fontsize=fontsize_label)
+        ax.tick_params(axis='both', labelsize=10)
+
+        plt.title('Number of samples sent to each expert during inference \n with '+str(len(test_loader.dataset))+ ' samples of '+dataset+ ' test dataset and '+str(total_experts)+' experts', fontsize=14)
+        plot_file = model_file.replace('models.pt', 'expert_usage.png')
         plt.savefig(os.path.join(fig_path, plot_file))
         plt.show()
 
-        cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
-        with torch.no_grad():
-            gate_outputs_all = []
-            pred_labels_all = []
-            labels_all = []
-            exp_class_prob = torch.zeros(total_experts, num_classes).to(device)
-            for images, labels in test_loader:
-                images, labels = images.to(device), labels.to(device)
-                moe_model = e_val['experts'][total_experts]['model']
-                moe_model.device = device
+        for e in range(total_experts):
+            for index, l in enumerate(labels):
+                exp_class_prob[e,l] += gate_outputs[index,e].to(device)
 
-                # predict the classes for test data
-                if model_type == 'moe_no_gate_self_information_model':
-                    pred = moe_model(images, targets=labels)
-                else:
-                    pred = moe_model(images)
-                    
-                pred_labels = torch.argmax(pred, dim=1)
+        exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
+        fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18,6))
 
-                labels_all.append(labels)
-                pred_labels_all.append(pred_labels)
-                
-                expert_outputs = moe_model.expert_outputs
-                gate_outputs = moe_model.gate_outputs
-                
-                gate_outputs_all.append(gate_outputs)
+        sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                    xticklabels=[classes[i] for i in range(0, num_classes)],
+                    cmap=cmap, annot=annot, fmt='d', ax=ax)
+        plt.show()
 
-            gate_outputs = torch.vstack(gate_outputs_all)
-            labels = torch.hstack(labels_all)
-            pred_labels = torch.hstack(pred_labels_all)
-            
-            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8, 6))
-            x = ['E '+str(i+1) for i in range(total_experts)]
-            y = torch.sum(gate_outputs, dim=0).cpu().numpy()
+        fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18, 6))
+        sns.heatmap(class_expert_table, yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                    xticklabels=[classes[i] for i in range(0, num_classes)],
+                    annot=annot, cmap=cmap, fmt='d', ax=ax)
 
-            sns.barplot(x=x, y=y, palette=palette, ax=ax)
-            plt.xlabel('Experts')
-            plt.ylabel('Number of samples', fontsize=fontsize_label)
-            ax.tick_params(axis='both', labelsize=10)
+        plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of '+dataset+' test data', 
+                  fontsize=fontsize)
+        plt.tick_params(axis='both', which='major', labelsize=14)
+        plot_file = model_file.replace('models.pt', 'class_expert_table.png')
+        plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
 
-            plt.title('Number of samples sent to each expert during inference \n with '+str(len(test_loader.dataset))+ ' samples of '+dataset+ ' test dataset and '+str(total_experts)+' experts', fontsize=14)
-            plot_file = model_file.replace('models.pt', 'expert_usage.png')
-            plt.savefig(os.path.join(fig_path, plot_file))
-            plt.show()
+        fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
+        sns.heatmap(confusion_matrix(labels.cpu(), pred_labels.cpu()), 
+                    xticklabels=[classes[i] for i in range(0, num_classes)],
+                    yticklabels=[classes[i] for i in range(0, num_classes)], 
+                    annot=annot, cmap=cmap, fmt='d', ax=ax)
 
-            for e in range(total_experts):
-                for index, l in enumerate(labels):
-                    exp_class_prob[e,l] += gate_outputs[index,e].to(device)
-
-            exp_total_prob = torch.sum(exp_class_prob, dim=1).view(-1,1).to(device)
-            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18,6))
-                
-            sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
-                        xticklabels=[classes[i] for i in range(0, num_classes)],
-                        cmap=cmap, annot=annot, fmt='d', ax=ax)
-            plt.show()
-            
-
-            # get the experts selected by the gate for each sample
-            selected_experts = torch.argmax(gate_outputs, dim=1)
-            
-            # plot the expert selection table
-            class_expert_table = np.asarray([[0] * num_classes]*total_experts)
-            for label, expert in zip(labels, selected_experts):
-                class_expert_table[expert,label] += 1
-
-            fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18, 6))
-            sns.heatmap(class_expert_table, yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
-                        xticklabels=[classes[i] for i in range(0, num_classes)],
-                        annot=annot, cmap=cmap, fmt='d', ax=ax)
-            
-            plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of '+dataset+' test data', 
-                      fontsize=fontsize)
-            plt.tick_params(axis='both', which='major', labelsize=14)
-            plot_file = model_file.replace('models.pt', 'class_expert_table.png')
-            plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
-
-            fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(12, 8))
-            sns.heatmap(confusion_matrix(labels.cpu(), pred_labels.cpu()), 
-                        xticklabels=[classes[i] for i in range(0, num_classes)],
-                        yticklabels=[classes[i] for i in range(0, num_classes)], 
-                        annot=annot, cmap=cmap, fmt='d', ax=ax)
-            
-            plt.show()
+        plt.show()
 
 
 def expert_usage_entropy(history, total_experts=5, num_epochs=20):
@@ -490,7 +496,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                 label = 'MoE'
             else:
                 x_label = 'I ' + name +' 0.0' 
-                label = 'MoE ' + name
+                label = name + ' MoE '
                 
             plot_file = generate_plot_file(m, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
@@ -510,7 +516,7 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                     label = 'MoE with importance regularization'
                 else:
                     x_label = 'I '+name+" {:.1f}".format(w_importance)
-                    label = 'MoE '+name+' with importance regularization'
+                    label = name + ' MoE with importance regularization'
             
                 plot_file = generate_plot_file(m, w_importance=w_importance, specific=str(num_classes)+'_'+str(total_experts)+'_models.pt')
 
@@ -554,16 +560,18 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                         if name == 'ignore':
                             x_label = 'T '+"{:.1f}".format(T)
                             label = 'MoE'
+                            hues.append('MoE with dual temp')
                         else:
                             x_label = 'T ' + name + " {:.1f}".format(T)
                             label = 'MoE ' + name
+                            hues.append(name+' MoE with dual temp')
                         x.append(x_label)
                         
                         x_temp.append('T '+"{:.1f}".format(T))
                         x_temp.append('T '+"{:.1f}".format(T))
                         y_sample_hue.append('Low Temp')
                         y_sample_hue.append('High Temp')               
-                        hues.append('Moe with dual temp')
+                        
 
     if not model_with_temp_decay is None:
         
@@ -601,13 +609,15 @@ def boxplot(model_single=None, model_with_temp=None,model_with_temp_decay=None,
                             if name == 'ignore':
                                 x_label = 'T '+"{:.1f}".format(T) +' D '+ D
                                 label = 'MoE'
+                                hues.append('MoE with dual temp on decay')
                             else:
                                 x_label = 'T ' + name + " {:.1f}".format(T) +' D '+ D
                                 label = 'MoE ' + name
+                                hues.append(name + ' MoE with dual temp on decay')
 
                             x.append(x_label)
                        
-                            hues.append('Moe with dual temp on decay')
+                            
 
     
     if not model_with_reg_temp is None:
