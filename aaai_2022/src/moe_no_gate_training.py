@@ -114,14 +114,20 @@ def train_no_gate_model(model, model_name, trainloader, testloader,
         torch.save(n_run_models_1,open(os.path.join(model_path, plot_file),'wb'))
 
             
-def train_from_no_gate_model(m, k=1,model_name='moe_no_gate_entropy_model',  
+def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out_model_name='moe_expectation_model',
                              expert_layers=None, gate_layers=None,
-                             num_epochs=20, num_classes=10, total_experts=5, w_importance_range=[0.0], 
-                             w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
-                             trainloader=None, testloader=None, expert_no_grad=True,
-                             gate_no_grad=False, model_path=None):
+                             num_epochs=20, num_classes=10, total_experts=5, 
+                             w_importance_range=[0.0], w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
+                             trainloader=None, testloader=None, 
+                             expert_no_grad=True, gate_no_grad=False, split_training=True, 
+                             model_path=None):
     
     T = [1.0]*num_epochs
+    moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device),''),
+                       'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device),'_stochastic'),
+                       'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device),'_top_1'),
+                       'moe_top_2_model':(moe_top_k_model, cross_entropy_loss().to(device),'_top_2')}
+    
     for w_importance, w_sample_sim_same, w_sample_sim_diff in product(w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
         
         print('w_importance','{:.1f}'.format(w_importance))
@@ -162,16 +168,9 @@ def train_from_no_gate_model(m, k=1,model_name='moe_no_gate_entropy_model',
 
             add_model_name = ''
             
-            if k > 0:
-                models = {'moe_top_k_model':{'model':moe_top_k_model,'loss':cross_entropy_loss(),
+            models = {out_model_name:{'model':moe_model_types[out_model_name][0],'loss':moe_model_types[out_model_name][1],
                                            'experts':{}},}
-                add_model_name = '_top_'+str(k)
-                
-            else:
-                models = {'moe_expectation_model':{'model':moe_expectation_model,'loss':cross_entropy_loss(),
-                                           'experts':{}},
-                         'moe_stochastic_model':{'model':moe_stochastic_model,'loss':stochastic_loss(cross_entropy_loss),
-                                           'experts':{}}}
+            add_model_name = moe_model_types[out_model_name][2]
 
             for key, val in models.items():
 
@@ -186,24 +185,29 @@ def train_from_no_gate_model(m, k=1,model_name='moe_no_gate_entropy_model',
 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
                 
+                if split_training:
+                    num_epochs = int(num_epochs/2)
+                    
                 hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
-                                       T = T, accuracy=accuracy, epochs=int(num_epochs/2))
+                                       T = T, accuracy=accuracy, epochs=num_epochs)
                 
-                new_expert_models = moe_model.experts
+                if split_training:
                 
-                for expert in new_expert_models:
-                    for param in expert.parameters():
-                        param.requires_grad = True
-                
-                optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
+                    new_expert_models = moe_model.experts
 
-                optimizer = default_optimizer(optimizer_moe=optimizer_moe)
-                
-                hist_1 = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
-                                       T = T, accuracy=accuracy, epochs=int(num_epochs/2))
-                
-                for key, value in hist_1.items():
-                    hist[key] = hist[key]+value
+                    for expert in new_expert_models:
+                        for param in expert.parameters():
+                            param.requires_grad = True
+
+                    optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
+
+                    optimizer = default_optimizer(optimizer_moe=optimizer_moe)
+
+                    hist_1 = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
+                                           T = T, accuracy=accuracy, epochs=int(num_epochs/2))
+
+                    for key, value in hist_1.items():
+                        hist[key] = hist[key]+value
                     
                 val['experts'][total_experts] = {'model':moe_model, 'history':hist}
 
