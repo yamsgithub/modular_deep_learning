@@ -30,8 +30,11 @@ from moe_models.moe_expectation_model import moe_expectation_model
 from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_top_k_model import moe_top_k_model
 from moe_models.moe_models_base import default_optimizer, two_temp_optimizer, default_distance_funct, resnet_distance_funct
-from helper.moe_models import cross_entropy_loss, stochastic_loss
+from helper.moe_models import cross_entropy_loss, stochastic_loss, MSE_loss
 from helper.visualise_results import *
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error
+
 
 
 # create a set of experts
@@ -42,25 +45,31 @@ def experts(num_experts, num_classes, expert_layers_type=None):
     return nn.ModuleList(models)
 
 # Compute accuracy of the model
-def accuracy(out, yb, mean=True):
+def accuracy_classification(out, yb, mean=True):
     preds = torch.argmax(out, dim=1).to(device, non_blocking=True)
     if mean:
         return (preds == yb).float().mean()
     else:
         return (preds == yb).float()
+    
+def accuracy_regression(out, yb, mean=True):
+    return mean_absolute_error(yb, out)
 
 
 def train_original_model(model, model_name, k=1, trainloader=None, testloader=None, 
                          expert_layers=None, gate_layers=None, 
                          runs=10, temps=[[1.0]*20],                
                          w_importance_range=[0.0], w_sample_sim_same_range=[0.0], 
-                         w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, 
+                         w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, task='classfication',
                          num_classes=10, total_experts=5, num_epochs=20, lr=0.001, wd=1e-3, model_path=None):
 
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device)),
+                       'moe_expectation_mse_model':(moe_expectation_model, MSE_loss().to(device)),
                        'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device)),
+                       'moe_stochastic_mse_model':(moe_stochastic_model, stochastic_loss(MSE_loss).to(device)),
                        'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device)),
-                       'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device))}
+                       'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device)),
+                       'moe_top_k_mse_model':(moe_top_k_model, MSE_loss().to(device))}
 
     for T, w_importance, w_sample_sim_same, w_sample_sim_diff in product(temps, w_importance_range, 
                                                                          w_sample_sim_same_range,  w_sample_sim_diff_range):
@@ -103,6 +112,11 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                 optimizer_moe = optim.Adam(moe_model.parameters(), lr=lr, weight_decay=wd)
                 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
+                
+                if task == 'classification':
+                    accuracy = accuracy_classification
+                else:
+                    accuracy = accuracy_regression
 
                 hist = moe_model.train(trainloader=trainloader, testloader=testloader,  
                                        loss_criterion=val['loss'], optimizer = optimizer,
