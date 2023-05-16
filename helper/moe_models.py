@@ -22,6 +22,20 @@ class cross_entropy_loss(nn.Module):
         crossentropy_loss = self.criterion(logp, targets)
         # print('crossentropy_loss', crossentropy_loss)
         return crossentropy_loss
+    
+class MSE_loss(nn.Module):
+    def __init__(self, reduction='mean'):
+        super(MSE_loss, self).__init__()
+        self.default_reduction = 'mean'
+        self.criterion = nn.MSELoss(reduction=reduction)
+        
+    def reduction(self, r='mean'):
+        self.criterion.reduction = r
+        
+    def forward(self, outputs=None, expert_outputs=None, gate_outputs=None, targets=None):
+#         print(outputs.squeeze(), targets.shape)
+        mse_loss = self.criterion(outputs.squeeze(), targets)
+        return mse_loss
 
 class expert_entropy_loss(nn.Module):
     def __init__(self):
