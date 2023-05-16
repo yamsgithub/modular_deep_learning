@@ -125,7 +125,8 @@ def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out
     T = [1.0]*num_epochs
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device),''),
                        'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device),'_stochastic'),
-                       'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device),'_top_1'),
+                       # 'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device),'_top_1'),
+                       'moe_top_1_model':(moe_top_k_model, cross_entropy_loss().to(device),'_top_1'),
                        'moe_top_2_model':(moe_top_k_model, cross_entropy_loss().to(device),'_top_2')}
     
     for w_importance, w_sample_sim_same, w_sample_sim_diff in product(w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
@@ -186,16 +187,17 @@ def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
                 
                 if split_training:
-                    num_epochs = int(num_epochs/2)
-                    
+                    train_num_epochs = int(num_epochs/2)
+                else:
+                    train_num_epochs = num_epochs
+                print('training epochs', train_num_epochs)
+                
                 hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
-                                       T = T, accuracy=accuracy, epochs=num_epochs)
+                                       T = T, accuracy=accuracy, epochs=train_num_epochs)
                 
                 if split_training:
-                
-                    new_expert_models = moe_model.experts
 
-                    for expert in new_expert_models:
+                    for expert in moe_model.experts:
                         for param in expert.parameters():
                             param.requires_grad = True
 
@@ -204,7 +206,7 @@ def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out
                     optimizer = default_optimizer(optimizer_moe=optimizer_moe)
 
                     hist_1 = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer,
-                                           T = T, accuracy=accuracy, epochs=int(num_epochs/2))
+                                           T = T, accuracy=accuracy, epochs=train_num_epochs)
 
                     for key, value in hist_1.items():
                         hist[key] = hist[key]+value
