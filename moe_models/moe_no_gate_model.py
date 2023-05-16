@@ -24,6 +24,9 @@ class AddGaussianNoise(object):
     def __call__(self, tensor):
         rand_noise = torch.randn(tensor.size()).to(self.device) 
         return  tensor + rand_noise * self.std + self.mean
+
+def mae(x,y):
+    return torch.mean(torch.abs(y-x))
     
     def __repr__(self):
         return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
@@ -52,8 +55,11 @@ class moe_no_gate_self_information_model(moe_models_base):
         for i, expert in enumerate(self.experts):
             expert_output = expert(inputs)
             y.append(expert_output.view(1,-1,self.num_classes))
-            expert_entropy = entropy(expert_output, targets)
-            h.append(expert_entropy)
+            if self.task == 'classification':
+                measure = entropy(expert_output, targets)
+            elif self.task == 'regression':
+                measure = mae(expert_output, targets)
+            h.append(measure)
 
         y = torch.vstack(y).transpose_(0,1).to(self.device)
         self.expert_outputs = y
