@@ -24,8 +24,10 @@ from moe_models.moe_top_k_model import moe_top_k_model
 from moe_models.moe_expectation_model import moe_expectation_model
 from moe_models.moe_stochastic_model import moe_stochastic_model
 from moe_models.moe_models_base import default_optimizer
-from helper.moe_models import cross_entropy_loss, stochastic_loss
+from helper.moe_models import cross_entropy_loss, stochastic_loss, MSE_loss
 from helper.visualise_results import *
+
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 device = torch.device("cpu")
 
@@ -42,12 +44,15 @@ def experts(num_experts, num_classes, expert_layers_type=None):
     return nn.ModuleList(models)
 
 # Compute accuracy of the model
-def accuracy(out, yb, mean=True):
+def accuracy_classification(out, yb, mean=True):
     preds = torch.argmax(out, dim=1).to(device, non_blocking=True)
     if mean:
         return (preds == yb).float().mean()
     else:
         return (preds == yb).float()
+    
+def accuracy_regression(out, yb, mean=True):
+    return mean_absolute_error(yb, out)
 
 
 from itertools import product
@@ -57,9 +62,10 @@ def train_no_gate_model(model, model_name, trainloader, testloader,
                 runs=1, temps=[[1.0]*20], no_gate_temps=[[1.0]*20],
                 w_importance_range=[0.0],
                 w_sample_sim_same_range=[0.0],w_sample_sim_diff_range=[0.0], 
-                num_classes=10, total_experts=5, num_epochs=20, model_path=None):
+                num_classes=10, total_experts=5, num_epochs=20, task='classification', model_path=None):
     
     moe_model_types = {'moe_no_gate_self_information_model':(moe_no_gate_self_information_model, cross_entropy_loss().to(device), output_type),
+                       'moe_no_gate_self_information_mse_model':(moe_no_gate_self_information_model, MSE_loss().to(device), output_type),
                        'moe_no_gate_entropy_model':(moe_no_gate_entropy_model, stochastic_loss(cross_entropy_loss).to(device), output_type),
                        'moe_top_k_model':(moe_top_k_model, cross_entropy_loss().to(device))}
 
@@ -92,11 +98,16 @@ def train_no_gate_model(model, model_name, trainloader, testloader,
 
                 moe_model = val['model'](output_type=moe_model_types[model_name][2], 
                                          num_experts=total_experts, num_classes=num_classes,
-                                         experts=expert_models, device=device).to(device)
+                                         experts=expert_models, task=task, device=device).to(device)
                     
                 optimizer_moe = optim.Adam(moe_model.parameters(), lr=0.001, amsgrad=False)
         
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
+            
+                if task == 'classification':
+                    accuracy = accuracy_classification
+                else:
+                    accuracy = accuracy_regression
                 
                 hist = moe_model.train(trainloader, testloader,  val['loss'], optimizer = optimizer, T = T, 
                                        no_gate_T=no_gate_T, w_importance=w_importance,  
@@ -119,14 +130,16 @@ def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out
                              num_epochs=20, num_classes=10, total_experts=5, 
                              w_importance_range=[0.0], w_sample_sim_same_range=[0.0], w_sample_sim_diff_range=[0.0],
                              trainloader=None, testloader=None, 
-                             expert_no_grad=True, gate_no_grad=False, split_training=True, 
+                             expert_no_grad=True, gate_no_grad=False, split_training=True, task='classification',
                              model_path=None):
     
     T = [1.0]*num_epochs
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device),''),
+                       'moe_expectation_mse_model':(moe_expectation_model, MSE_loss().to(device),''),
                        'moe_stochastic_model':(moe_stochastic_model, stochastic_loss(cross_entropy_loss).to(device),'_stochastic'),
                        # 'moe_top_1_model':(moe_top_k_model, stochastic_loss(cross_entropy_loss).to(device),'_top_1'),
                        'moe_top_1_model':(moe_top_k_model, cross_entropy_loss().to(device),'_top_1'),
+                       'moe_stochastic_mse_model':(moe_stochastic_model, stochastic_loss(MSE_loss).to(device),'_stochastic'),
                        'moe_top_2_model':(moe_top_k_model, cross_entropy_loss().to(device),'_top_2')}
     
     for w_importance, w_sample_sim_same, w_sample_sim_diff in product(w_importance_range, w_sample_sim_same_range, w_sample_sim_diff_range):
@@ -185,6 +198,11 @@ def train_from_no_gate_model(m, k=0, model_name='moe_no_gate_entropy_model', out
                 optimizer_moe = optim.Adam(gate_model.parameters(), lr=0.001, amsgrad=False)
 
                 optimizer = default_optimizer(optimizer_moe=optimizer_moe)
+                
+                if task == 'classification':
+                    accuracy = accuracy_classification
+                else:
+                    accuracy = accuracy_regression
                 
                 if split_training:
                     train_num_epochs = int(num_epochs/2)
