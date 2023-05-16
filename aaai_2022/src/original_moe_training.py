@@ -60,7 +60,7 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                          expert_layers=None, gate_layers=None, 
                          runs=10, temps=[[1.0]*20],                
                          w_importance_range=[0.0], w_sample_sim_same_range=[0.0], 
-                         w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, task='classfication',
+                         w_sample_sim_diff_range=[0.0], distance_funct = default_distance_funct, task='classification',
                          num_classes=10, total_experts=5, num_epochs=20, lr=0.001, wd=1e-3, model_path=None):
 
     moe_model_types = {'moe_expectation_model':(moe_expectation_model, cross_entropy_loss().to(device)),
@@ -115,7 +115,7 @@ def train_original_model(model, model_name, k=1, trainloader=None, testloader=No
                 
                 if task == 'classification':
                     accuracy = accuracy_classification
-                else:
+                elif task == 'regression':
                     accuracy = accuracy_regression
 
                 hist = moe_model.train(trainloader=trainloader, testloader=testloader,  
