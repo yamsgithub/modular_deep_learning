@@ -14,7 +14,20 @@ def entropy(x, y):
     p = x[torch.arange(x.shape[0]).type_as(y),y]
     eps=1e-15
     return -1*torch.log2(p+eps)
+
+class AddGaussianNoise(object):
+    def __init__(self, mean=0., std=1., device= torch.device("cpu")):
+        self.std = std
+        self.mean = mean
+        self.device = device
+        
+    def __call__(self, tensor):
+        rand_noise = torch.randn(tensor.size()).to(self.device) 
+        return  tensor + rand_noise * self.std + self.mean
     
+    def __repr__(self):
+        return self.__class__.__name__ + '(mean={0}, std={1})'.format(self.mean, self.std)
+
 class moe_no_gate_self_information_model(moe_models_base):
 
     def __init__(self, output_type='argmax', num_experts=5, num_classes=10, experts=None, gate=None, 
@@ -47,7 +60,8 @@ class moe_no_gate_self_information_model(moe_models_base):
         
         h = torch.vstack(h).transpose_(0,1).to(self.device)
         self.per_sample_entropy = h
-        p = F.softmin(h/T, dim=1).detach()
+        add_noise = AddGaussianNoise(device=self.device)
+        p = F.softmin(add_noise(h)/T, dim=1).detach()
                 
         self.gate_outputs = p
 
