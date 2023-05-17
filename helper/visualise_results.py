@@ -236,7 +236,8 @@ def find_best_model(m, model_type='moe_expectation_model', temps=[[1.0]*20], T_d
                   if min_val_error > val_error:
                      min_val_error = val_error
                      train_error = 1-history['accuracy'][-1]
-                     mutual_info = history['mutual_EY'][-1]
+                     # print('mutual info', history['mutual_EY'])
+                     # mutual_info = history['mutual_EY'][-1]
                      sample_entropy = history['sample_entropy'][-1]
                      expert_usage = expert_usage_entropy(history,total_experts,num_epochs)
                      best_model = model
@@ -384,7 +385,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
         sns.barplot(x=x, y=y, palette=palette, ax=ax)
         plt.xlabel('Experts')
         plt.ylabel('Number of samples', fontsize=fontsize_label)
-        ax.tick_params(axis='both', labelsize=10)
+        ax.tick_params(axis='both', labelsize=8)
 
         plt.title('Number of samples sent to each expert during inference \n with '+str(len(test_loader.dataset))+ ' samples of '+dataset+ ' test dataset and '+str(total_experts)+' experts', fontsize=14)
         plot_file = model_file.replace('models.pt', 'expert_usage.png')
@@ -401,6 +402,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
         sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
                     xticklabels=[classes[i] for i in range(0, num_classes)],
                     cmap=cmap, annot=annot, fmt='d', ax=ax)
+        plt.tick_params(axis='both', which='major', labelsize=8)
         plt.show()
 
         fig1,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(18, 6))
@@ -410,7 +412,7 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
 
         plt.title('Experts selected per class for '+str(len(test_loader.dataset))+' samples of '+dataset+' test data', 
                   fontsize=fontsize)
-        plt.tick_params(axis='both', which='major', labelsize=14)
+        plt.tick_params(axis='both', which='major', labelsize=8)
         plot_file = model_file.replace('models.pt', 'class_expert_table.png')
         plt.savefig(os.path.join(fig_path, plot_file),bbox_inches='tight')
 
@@ -422,6 +424,98 @@ def plot_expert_usage(m, model_type='moe_expectation_model',test_loader=None, te
 
         plt.show()
 
+def plot_expert_predictions(m, model_type='moe_expectation_model', test_loader=None, temps=[1.0], 
+                            w_importance_range = [0.0], w_sample_sim_same_range = [0.0], w_sample_sim_diff_range = [0.0], 
+                            total_experts = 5, num_classes = 10, classes=range(10), num_epochs = 20, 
+                            fig_path=None, model_path=None,dataset='MNIST', 
+                            annot=True, best=True, index=0, 
+                            device=torch.device("cpu")):
+
+    model, model_file, model_index = find_best_model(m, model_type, temps=temps,
+                                                     w_importance_range=w_importance_range,
+                                                     w_sample_sim_same_range=w_sample_sim_same_range,
+                                                     w_sample_sim_diff_range=w_sample_sim_diff_range, 
+                                                     num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs,
+                                                     model_path=model_path, device=device)
+    print(model_file)
+
+    for e_key, e_val in model.items():
+        history = model[e_key]['experts'][total_experts]['history']
+        gate_probabilities = history['gate_probabilities']
+
+        cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
+
+        # expert_label = {i:[] for i in range(total_experts)}
+        exp_class_prob = torch.zeros(total_experts, num_classes).to(device)
+        expert_predictions = {}
+        all_labels = []
+        with torch.no_grad(): 
+            for images, labels in test_loader:            
+
+                images, labels = images.to(device), labels.to(device)
+                all_labels.append(labels)
+                moe_model = e_val['experts'][total_experts]['model']
+
+                # predict the classes for test data
+                if model_type=='moe_no_gate_self_information_model':
+                    pred = [p.item() for p in torch.argmax(moe_model(images, labels), dim=1)]
+                else:
+                    pred = [p.item() for p in torch.argmax(moe_model(images), dim=1)]
+
+                gate_outputs = moe_model.gate_outputs
+                
+                # experts = [e.item() for e in torch.argmax(gate_outputs, dim=1)]
+                
+#                 sample_predictions = [['y_e'+str(i) for i in range(total_experts)]]
+#                 sample_predictions[0] = sample_predictions[0]+['y\'','y','gate prob','E']
+                
+#                 for i in range(len(labels)):
+#                     entry = []
+#                     probs = []
+#                     for e in range(total_experts):
+#                         entry.append(torch.argmax(moe_model.expert_outputs[i,e,:]).item())
+#                         probs.append('{:.1f}'.format(moe_model.gate_outputs[i,e]))
+#                     entry.append(pred[i])
+#                     entry.append(labels[i].item())
+#                     entry.append(probs)
+#                     entry.append(experts[i])
+#                     sample_predictions.append(entry)
+                
+                
+                for e in range(total_experts):
+                    for index, l in enumerate(labels):
+                        exp_class_prob[e,l] += gate_outputs[index,e]
+                experts = moe_model.experts
+            
+                for i, expert in enumerate(experts):
+                    pred = torch.argmax(expert(images), dim=1)
+                    if i in expert_predictions:
+                        expert_predictions[i].append(pred)
+                    else:
+                        expert_predictions[i] = [pred]
+                        
+
+            fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20,10))
+
+            sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
+                            xticklabels=classes,
+                            cmap=cmap, annot=annot, fmt='d', ax=ax)
+            plt.title('Expert gate probabilities for '+dataset+' dataset')
+            plt.show()
+            
+            all_labels = torch.hstack(all_labels)
+            for key, value in expert_predictions.items():
+                fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(20,20))
+                pred_labels = torch.hstack(value)
+                sns.heatmap(confusion_matrix(all_labels.cpu(), pred_labels.cpu()), 
+                    xticklabels=[classes[i] for i in range(0, num_classes)],
+                    yticklabels=[classes[i] for i in range(0, num_classes)], 
+                    annot=annot, cmap=cmap, fmt='d', ax=ax)
+                plt.title('Expert '+ str(key+1)+ ' predictions for '+dataset+' dataset')
+                plt.show() 
+                
+                # df = pd.DataFrame(sample_predictions[1:50], columns=sample_predictions[0])
+                # print(df)
 
 def expert_usage_entropy(history, total_experts=5, num_epochs=20):
     gate_probability = torch.vstack(history['gate_probabilities']).view(num_epochs, -1, total_experts)
@@ -1405,62 +1499,5 @@ def plot_gate_prob(model_name, temps=[1.0], w_importance_range=[0], w_sample_sim
 
 
     
-def plot_expert_predictions(m, test_loader, temps=[1.0], w_importance_range = [0.0], w_sample_sim_same_range = [0.0], w_sample_sim_diff_range = [0.0], total_experts = 5, num_classes = 10, 
-                            classes=range(10), num_epochs = 20, index=0, fig_path=None, model_path=None):
 
-
-    model, model_file = find_best_model(m, temps=temps, w_importance_range=w_importance_range,
-                                        w_sample_sim_same_range=w_sample_sim_same_range, w_sample_sim_diff_range=w_sample_sim_diff_range, 
-                                        num_classes=num_classes, total_experts=total_experts, num_epochs=num_epochs, model_path=model_path)
-    print(model_file)
-
-
-    for e_key, e_val in model.items():
-        history = model[e_key]['experts'][total_experts]['history']
-        gate_probabilities = history['gate_probabilities']
-
-        cmap = sns.color_palette("ch:s=.25,rot=-.25", as_cmap=True)
-
-        expert_label = {i:[] for i in range(total_experts)}
-        with torch.no_grad(): 
-            for images, labels in test_loader:            
-
-                images, labels = images.to(device), labels.to(device)
-                moe_model = e_val['experts'][total_experts]['model']
-
-                # predict the classes for test data
-                pred = [p.item() for p in torch.argmax(moe_model(images), dim=1)]
-
-                gate_outputs = moe_model.gate_outputs
-                
-                experts = [e.item() for e in torch.argmax(gate_outputs, dim=1)]
-                
-                sample_predictions = [['y_e'+str(i) for i in range(total_experts)]]
-                sample_predictions[0] = sample_predictions[0]+['y\'','y','gate prob','E']
-                
-                for i in range(len(labels)):
-                    entry = []
-                    probs = []
-                    for e in range(total_experts):
-                        entry.append(torch.argmax(moe_model.expert_outputs[i,e,:]).item())
-                        probs.append('{:.1f}'.format(moe_model.gate_outputs[i,e]))
-                    entry.append(pred[i])
-                    entry.append(labels[i].item())
-                    entry.append(probs)
-                    entry.append(experts[i])
-                    sample_predictions.append(entry)
-                    
-                exp_class_prob = torch.zeros(total_experts, num_classes).to(device)
-                for e in range(total_experts):
-                    for index, l in enumerate(labels):
-                        exp_class_prob[e,l] += gate_outputs[index,e]
-
-                fig,ax = plt.subplots(1, 1, sharex=False, sharey=False, figsize=(8,4))
-
-                sns.heatmap(exp_class_prob.cpu().numpy().astype(int), yticklabels=['E'+str(i) for i in range(1,total_experts+1)], 
-                                xticklabels=classes,
-                                cmap=cmap, annot=True, fmt='d', ax=ax)
-                plt.show()
-                df = pd.DataFrame(sample_predictions[1:50], columns=sample_predictions[0])
-                print(df)
 
