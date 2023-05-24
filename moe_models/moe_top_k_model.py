@@ -35,6 +35,8 @@ class moe_top_k_model(moe_models_base):
             attention = self.attn(h, h_gate)
 
             # attention scores are the gate output
+            del h_gate
+            del h
             p = attention 
         else:
             p = self.gate(inputs, T)
@@ -54,18 +56,15 @@ class moe_top_k_model(moe_models_base):
             self.gate_outputs = torch.masked_fill(p, mask, float("-inf"))
             self.gate_outputs = F.softmax(self.gate_outputs, dim=1)
             p = self.gate_outputs
-
-        # repeat probabilities number of classes times so
-        # dimensions correspond  
+            
         p = p.reshape(p.shape[0],p.shape[1], 1)        
         p = p.repeat(1,1,y.shape[2])
-        
+
         output = p[torch.arange(p.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts]*y[torch.arange(y.shape[0]).unsqueeze(-1).type_as(selected_experts), selected_experts]
 
         if self.k > 1:
             output = torch.sum(output, 1)
         else:
             output = F.softmax(output.squeeze(), dim=1)
-                   
         return output
     
