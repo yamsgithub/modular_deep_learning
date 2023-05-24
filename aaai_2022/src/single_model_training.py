@@ -49,7 +49,7 @@ def train_single_model(model_name, model_type, trainloader, testloader, num_clas
         
         model = model_type(num_classes).to(device)
         history = {'loss':[], 'accuracy':[], 'val_accuracy':[]}
-        optimizer = optim.Adam(model.parameters(), lr=0.001, amsgrad=False)
+        optimizer = optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-6)
         
         for epoch in range(num_epochs):
             running_loss = 0.0
